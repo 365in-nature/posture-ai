@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostureAI — 체형 분석 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0c0f;
+  --surface: #13151a;
+  --surface2: #1c1f27;
+  --surface3: #242830;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.12);
+  --text: #ede9e3;
+  --text2: #8c8880;
+  --text3: #50504c;
+  --accent: #c8b49a;
+  --accent2: #e8d8c0;
+  --red: #d4614a;
+  --red-soft: rgba(212,97,74,0.12);
+  --blue: #4a82c4;
+  --blue-soft: rgba(74,130,196,0.12);
+  --green: #5a9e72;
+  --gold: #c8a84a;
+  --r: 10px;
+  --r-sm: 6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.65;}
+a{color:inherit;text-decoration:none;}
+button{font-family:'Noto Sans KR',sans-serif;}
+
+/* ── HEADER ── */
+header{
+  border-bottom:1px solid var(--border);
+  padding:0 40px; height:60px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0;
+  background:rgba(11,12,15,0.90);
+  backdrop-filter:blur(16px);
+  z-index:200;
+}
+.logo{font-family:'DM Serif Display',serif;font-size:19px;color:var(--accent2);letter-spacing:-0.02em;}
+.logo em{font-style:italic;color:var(--accent);}
+.hdr-right{display:flex;align-items:center;gap:12px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background .3s;}
+.dot.on{background:var(--green);box-shadow:0 0 7px var(--green);}
+.status-txt{font-size:11px;color:var(--text3);}
+
+/* ── BUTTONS ── */
+.btn{
+  border:none;cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  border-radius:var(--r-sm);
+  transition:all .18s;
+}
+.btn-primary{
+  background:var(--accent);color:#1a1408;
+  padding:11px 22px;font-size:13px;font-weight:700;
+}
+.btn-primary:hover{background:var(--accent2);}
+.btn-primary:active{transform:scale(.97);}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-ghost{
+  background:transparent;color:var(--text2);
+  border:1px solid var(--border2);
+  padding:9px 18px;font-size:12px;
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── MAIN ── */
+main{max-width:1080px;margin:0 auto;padding:52px 40px;}
+
+/* ── SETUP SCREEN ── */
+#screen-setup{display:none;min-height:72vh;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:30px;}
+.setup-title{font-family:'DM Serif Display',serif;font-size:46px;color:var(--accent2);letter-spacing:-.03em;line-height:1.15;}
+.setup-title em{font-style:italic;color:var(--accent);}
+.setup-sub{font-size:14px;color:var(--text2);max-width:400px;line-height:1.75;}
+.api-row{display:flex;gap:10px;width:100%;max-width:460px;}
+.api-row input{
+  flex:1;background:var(--surface);
+  border:1px solid var(--border2);border-radius:var(--r-sm);
+  padding:11px 15px;color:var(--text);font-size:13px;outline:none;
+  transition:border-color .2s;
+}
+.api-row input:focus{border-color:var(--accent);}
+.setup-note{font-size:11px;color:var(--text3);}
+
+/* ── UPLOAD SCREEN ── */
+#screen-upload{display:none;}
+.screen-ttl{font-family:'DM Serif Display',serif;font-size:30px;color:var(--accent2);margin-bottom:6px;}
+.screen-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.upload-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
+.upload-zone{
+  background:var(--surface);
+  border:1.5px dashed var(--border2);
+  border-radius:var(--r);
+  padding:32px 18px;text-align:center;
+  cursor:pointer;transition:all .2s;
+  position:relative;overflow:hidden;min-height:200px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(200,180,154,.05);}
+.upload-zone.done{border-style:solid;border-color:var(--accent);}
+.uz-icon{font-size:26px;opacity:.4;margin-bottom:12px;}
+.uz-label{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:4px;}
+.uz-desc{font-size:11px;color:var(--text3);line-height:1.5;}
+.uz-preview{width:100%;height:160px;object-fit:contain;border-radius:var(--r-sm);margin-bottom:8px;}
+.uz-fname{font-size:10px;color:var(--green);word-break:break-all;}
+.patient-row{display:flex;align-items:center;gap:12px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 18px;}
+.patient-row label{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;}
+.patient-row input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border2);padding:4px 8px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .2s;}
+.patient-row input:focus{border-bottom-color:var(--accent);}
+.patient-row input::placeholder{color:var(--text3);}
+.analyze-wrap{display:flex;justify-content:center;}
+.btn-analyze{
+  background:var(--accent);color:#1a1408;
+  border:none;border-radius:var(--r-sm);
+  padding:13px 44px;font-size:14px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;gap:10px;
+  transition:all .2s;
+}
+.btn-analyze:hover{background:var(--accent2);transform:translateY(-1px);}
+.btn-analyze:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+
+/* ── LOADING ── */
+#screen-loading{display:none;min-height:55vh;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+.ring{width:50px;height:50px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-txt{font-size:13px;color:var(--text2);animation:pulse 2.2s ease-in-out infinite;}
+.loading-steps{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:380px;}
+.loading-step{font-size:11px;padding:4px 10px;border-radius:20px;background:var(--surface);color:var(--text3);border:1px solid var(--border);transition:all .4s;}
+.loading-step.active{background:rgba(200,180,154,.12);color:var(--accent);border-color:rgba(200,180,154,.3);}
+@keyframes pulse{0%,100%{opacity:.45;}50%{opacity:1;}}
+
+/* ── RESULT ── */
+#screen-result{display:none;}
+.result-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+.result-ttl{font-family:'DM Serif Display',serif;font-size:26px;color:var(--accent2);}
+.result-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+/* METRICS */
+.metrics-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-bottom:24px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;}
+.mc-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+.mc-val{font-family:'DM Serif Display',serif;font-size:24px;color:var(--accent2);line-height:1;margin-bottom:3px;}
+.mc-val.alert{color:var(--red);}
+.mc-sub{font-size:10px;color:var(--text3);}
+.mc-sub.alert{color:var(--red);font-weight:600;}
+
+/* PELVIC BANNER */
+#pelvic-banner{display:none;margin-bottom:16px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 18px;}
+.pelvic-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.pelvic-title{font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:3px;}
+.pelvic-desc{font-size:11px;color:var(--text2);}
+.pelvic-btns{display:flex;gap:6px;}
+.pb{padding:7px 14px;font-size:12px;font-weight:500;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:var(--r-sm);cursor:pointer;transition:all .15s;}
+.pb:hover{border-color:var(--accent);color:var(--accent);}
+.pb.active{background:var(--accent);color:#1a1408;border-color:var(--accent);font-weight:700;}
+.pb.selected{background:var(--surface2);color:var(--accent2);border-color:var(--accent);}
+.pb-confirm{padding:8px 20px;font-size:12px;font-weight:700;background:var(--accent);color:#1a1408;border:none;border-radius:var(--r-sm);cursor:pointer;transition:all .15s;}
+.pb-confirm:hover:not(:disabled){background:var(--accent2);}
+.pb-confirm:disabled{opacity:.3;cursor:not-allowed;}
+#pelvic-status{margin-top:10px;font-size:12px;}
+
+/* TABS */
+.tab-nav{display:flex;gap:2px;background:var(--surface);border-radius:var(--r-sm);padding:4px;margin-bottom:26px;flex-wrap:wrap;}
+.tab-btn{padding:8px 18px;font-size:12px;font-weight:500;background:transparent;border:none;border-radius:4px;color:var(--text2);cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{background:var(--surface2);color:var(--accent2);font-weight:600;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* SECTION LABEL */
+.sec-lbl{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text3);margin:26px 0 13px;
+  display:flex;align-items:center;gap:10px;
+}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* MUSCLE CARDS */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:20px;}
+.muscle-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px;transition:border-color .2s;}
+.muscle-card:hover{border-color:var(--border2);}
+.muscle-card.tight{border-left:3px solid var(--red);}
+.muscle-card.weak{border-left:3px solid var(--blue);}
+.bdg{display:inline-block;font-size:9px;font-weight:700;padding:3px 8px;border-radius:4px;margin-bottom:9px;letter-spacing:.04em;text-transform:uppercase;}
+.bdg-tight{background:var(--red-soft);color:#e07a65;}
+.bdg-weak{background:var(--blue-soft);color:#6b9fd4;}
+.bdg-star{background:rgba(212,97,74,.18);color:var(--red);margin-left:4px;}
+.muscle-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.muscle-desc{font-size:11px;color:var(--text2);line-height:1.6;}
+
+/* EXERCISE CARDS */
+.ex-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:17px 19px;margin-bottom:10px;transition:border-color .2s;}
+.ex-card:hover{border-color:var(--border2);}
+.ex-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px;flex-wrap:wrap;}
+.ex-name{font-size:14px;font-weight:600;color:var(--accent2);}
+.ex-tags{display:flex;gap:5px;flex-wrap:wrap;}
+.ex-tag{font-size:10px;padding:3px 8px;border-radius:4px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);white-space:nowrap;}
+.ex-desc{font-size:12px;color:var(--text2);line-height:1.7;}
+
+/* WEEKLY */
+.weekly-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:26px;}
+.day-col{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 7px;text-align:center;}
+.day-name{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;}
+.day-item{font-size:9px;padding:3px 4px;border-radius:3px;margin-bottom:3px;line-height:1.35;}
+.day-item.stretch{background:rgba(212,97,74,.1);color:#e07a65;}
+.day-item.strength{background:rgba(74,130,196,.1);color:#6b9fd4;}
+.day-item.cardio{background:rgba(200,180,154,.1);color:var(--accent);}
+.day-item.rest{background:rgba(90,158,114,.1);color:#7ac496;}
+
+/* PHASE TABLE */
+.phase-table{width:100%;border-collapse:collapse;font-size:12px;}
+.phase-table th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--border);}
+.phase-table td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top;}
+.phase-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;white-space:nowrap;}
+.ph1{background:rgba(200,180,154,.14);color:var(--accent);}
+.ph2{background:rgba(74,130,196,.14);color:#6b9fd4;}
+.ph3{background:rgba(90,158,114,.14);color:#7ac496;}
+
+/* NOTICE / ERROR */
+.notice{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 15px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:22px;}
+.notice strong{color:var(--text);}
+.err-box{background:rgba(212,97,74,.08);border:1px solid rgba(212,97,74,.25);border-radius:var(--r-sm);padding:14px 18px;font-size:12px;color:#e07a65;margin-bottom:18px;display:none;}
+
+/* PDF DROPDOWN */
+.pdf-wrap{position:relative;}
+.pdf-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);overflow:hidden;z-index:50;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,.5);}
+.pdf-item{display:block;width:100%;text-align:left;padding:10px 16px;font-size:12px;font-family:'Noto Sans KR',sans-serif;background:transparent;color:var(--text2);border:none;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);}
+.pdf-item:last-child{border-bottom:none;}
+.pdf-item:hover{background:var(--surface3);color:var(--text);}
+.pdf-generating{font-size:11px;color:var(--accent);display:none;align-items:center;gap:6px;}
+
+/* RESPONSIVE */
+@media(max-width:720px){
+  header{padding:0 20px;}
+  main{padding:36px 18px;}
+  .upload-grid{grid-template-columns:1fr;}
+  .weekly-grid{grid-template-columns:repeat(4,1fr);}
+  .setup-title{font-size:32px;}
+  .tab-btn{padding:7px 12px;font-size:11px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Posture<em>AI</em></div>
+  <div class="hdr-right">
+    <div class="dot" id="api-dot"></div>
+    <span class="status-txt" id="api-status">API 미연결</span>
+    <button class="btn btn-ghost" id="btn-chg-key" style="display:none;padding:5px 11px;font-size:11px;" onclick="resetSetup()">키 변경</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ── SETUP ── -->
+<div id="screen-setup">
+  <div>
+    <div class="setup-title">체형 분석<br><em>&amp; 운동 처방</em></div>
+  </div>
+  <p class="setup-sub">3D 체형 스캔 이미지 3장을 업로드하면 자세 불균형을 진단하고 맞춤형 교정 운동을 처방합니다.</p>
+  <div class="api-row">
+    <input type="password" id="api-input" placeholder="Anthropic API 키 입력 (sk-ant-...)" />
+    <button class="btn btn-primary" onclick="saveKey()">시작</button>
+  </div>
+  <p class="setup-note">API 키는 브라우저 localStorage에만 저장되며 외부 서버로 전송되지 않습니다.</p>
+</div>
+
+<!-- ── UPLOAD ── -->
+<div id="screen-upload">
+  <div class="screen-ttl">이미지 업로드</div>
+  <div class="screen-sub">3가지 스캔 이미지를 모두 업로드한 후 분석을 시작하세요</div>
+
+  <div class="notice">
+    <strong>업로드 순서</strong> &nbsp;① 측면 3D 스캔 &nbsp;② 측정 수치 테이블 &nbsp;③ 등면 컨투어 맵 &nbsp;|&nbsp; 지원 형식: JPG, PNG, WEBP
+  </div>
+
+  <div id="err-box" class="err-box"></div>
+
+  <div class="upload-grid">
+    <div class="upload-zone" id="z0" ondragover="drgOvr(event,0)" ondragleave="drgLv(0)" ondrop="drpFile(event,0)">
+      <input type="file" accept="image/*" onchange="fileSel(event,0)">
+      <div class="uz-icon">◈</div>
+      <div class="uz-label">측면 3D 스캔</div>
+      <div class="uz-desc">수직 기준선 대비<br>자세 정렬 확인용</div>
+    </div>
+    <div class="upload-zone" id="z1" ondragover="drgOvr(event,1)" ondragleave="drgLv(1)" ondrop="drpFile(event,1)">
+      <input type="file" accept="image/*" onchange="fileSel(event,1)">
+      <div class="uz-icon">◉</div>
+      <div class="uz-label">측정 수치 테이블</div>
+      <div class="uz-desc">척주·어깨·견갑·허리<br>배꼽 간격 수치</div>
+    </div>
+    <div class="upload-zone" id="z2" ondragover="drgOvr(event,2)" ondragleave="drgLv(2)" ondrop="drpFile(event,2)">
+      <input type="file" accept="image/*" onchange="fileSel(event,2)">
+      <div class="uz-icon">◌</div>
+      <div class="uz-label">등면 컨투어 맵</div>
+      <div class="uz-desc">색상 분포로<br>체표면 불균형 확인</div>
+    </div>
+  </div>
+
+  <div class="patient-row">
+    <label>👤 환자 이름</label>
+    <input type="text" id="patient-name" placeholder="이름을 입력하세요 (예: 홍길동)" maxlength="20" />
+  </div>
+
+  <div class="analyze-wrap">
+    <button class="btn-analyze" id="btn-analyze" disabled onclick="runAnalysis()">
+      ▶&nbsp; 분석 시작
+    </button>
+  </div>
+</div>
+
+<!-- ── LOADING ── -->
+<div id="screen-loading">
+  <div class="ring"></div>
+  <div class="loading-txt" id="load-txt">이미지 분석 중...</div>
+  <div class="loading-steps">
+    <span class="loading-step" id="ls0">① 자세 분석</span>
+    <span class="loading-step" id="ls1">② 수치 해석</span>
+    <span class="loading-step" id="ls2">③ 컨투어 맵</span>
+    <span class="loading-step" id="ls3">④ 근육 불균형</span>
+    <span class="loading-step" id="ls4">⑤ 운동 처방</span>
+    <span class="loading-step" id="ls5">⑥ 주간 프로그램</span>
+  </div>
+</div>
+
+<!-- ── RESULT ── -->
+<div id="screen-result">
+  <div class="result-hdr">
+    <div class="result-ttl">분석 결과<span id="result-patient-name" style="font-size:16px;color:var(--accent);margin-left:12px;font-family:'Noto Sans KR',sans-serif;font-weight:600;"></span></div>
+    <div class="result-actions">
+      <span class="pdf-generating" id="pdf-gen-msg"><div class="ring" style="width:14px;height:14px;border-width:1.5px;"></div> PDF 생성 중...</span>
+      <div class="pdf-wrap" id="pdf-drop-wrap">
+        <button class="btn btn-ghost" onclick="togglePdfMenu()" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M10 2v3h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          PDF 저장 ▾
+        </button>
+        <div class="pdf-menu" id="pdf-menu">
+          <button class="pdf-item" onclick="exportPdf('all')">전체 보고서</button>
+          <button class="pdf-item" onclick="exportPdf('muscles')">근육 불균형</button>
+          <button class="pdf-item" onclick="exportPdf('stretch')">스트레칭 처방</button>
+          <button class="pdf-item" onclick="exportPdf('strengthen')">강화 운동 처방</button>
+          <button class="pdf-item" onclick="exportPdf('program')">주간 프로그램</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" onclick="resetUpload()" style="font-size:12px;">← 새 분석</button>
+    </div>
+  </div>
+
+  <div class="metrics-row" id="metrics-row"></div>
+
+  <!-- 골반 경사 보정 -->
+  <div id="pelvic-banner">
+    <div class="pelvic-inner">
+      <div>
+        <div class="pelvic-title">골반 경사 보정</div>
+        <div class="pelvic-desc">AI 진단이 잘못된 경우 직접 선택 후 확인을 눌러주세요.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="pelvic-btns">
+          <button class="pb" id="pb-ant" onclick="selPelvic('anterior')">전방 경사</button>
+          <button class="pb" id="pb-neu" onclick="selPelvic('neutral')">정상</button>
+          <button class="pb" id="pb-pos" onclick="selPelvic('posterior')">후방 경사</button>
+        </div>
+        <button class="pb-confirm btn" id="pb-confirm" onclick="confirmPelvic()" disabled>확인</button>
+      </div>
+    </div>
+    <div id="pelvic-status"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('muscles',this)">근육 불균형</button>
+    <button class="tab-btn" onclick="switchTab('stretch',this)">스트레칭 처방</button>
+    <button class="tab-btn" onclick="switchTab('strengthen',this)">강화 운동 처방</button>
+    <button class="tab-btn" onclick="switchTab('program',this)">주간 프로그램</button>
+  </div>
+
+  <div id="tab-muscles" class="tab-pane active"></div>
+  <div id="tab-stretch" class="tab-pane"></div>
+  <div id="tab-strengthen" class="tab-pane"></div>
+  <div id="tab-program" class="tab-pane"></div>
+</div>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+let apiKey = '';
+let files = [null, null, null];
+let result = null;
+let patientName = '';
+let pelvicCurrent = 'anterior';
+let pelvicPending = null;
+
+const LABELS = ['측면 3D 스캔', '측정 수치 테이블', '등면 컨투어 맵'];
+const DESCS  = ['수직 기준선 대비<br>자세 정렬 확인용', '척주·어깨·견갑·허리<br>배꼽 간격 수치', '색상 분포로<br>체표면 불균형 확인'];
+const ICONS  = ['◈', '◉', '◌'];
+const STEPS  = ['자세 분석 중...','수치 해석 중...','컨투어 맵 분석 중...','근육 불균형 도출 중...','운동 처방 생성 중...','주간 프로그램 작성 중...'];
+
+/* ═══════════════════════════════════════════════════
+   SETUP / API KEY
+═══════════════════════════════════════════════════ */
+function saveKey() {
+  const v = document.getElementById('api-input').value.trim();
+  if (!v.startsWith('sk-ant-')) { alert('올바른 Anthropic API 키를 입력해주세요 (sk-ant- 로 시작)'); return; }
+  apiKey = v;
+  localStorage.setItem('pa_key', v);
+  showUpload();
+}
+
+function resetSetup() {
+  localStorage.removeItem('pa_key');
+  apiKey = '';
+  show('screen-setup');
+  hide('screen-upload'); hide('screen-result'); hide('screen-loading');
+  setApiStatus(false);
+}
+
+function showUpload() {
+  show('screen-upload'); hide('screen-setup');
+  setApiStatus(true);
+}
+
+function setApiStatus(on) {
+  document.getElementById('api-dot').className = 'dot' + (on ? ' on' : '');
+  document.getElementById('api-status').textContent = on ? 'API 연결됨' : 'API 미연결';
+  document.getElementById('btn-chg-key').style.display = on ? 'inline-block' : 'none';
+}
+
+/* ═══════════════════════════════════════════════════
+   FILE UPLOAD
+═══════════════════════════════════════════════════ */
+function fileSel(e, i) { const f = e.target.files[0]; if (f) handleFile(f, i); }
+function drgOvr(e, i) { e.preventDefault(); document.getElementById('z'+i).classList.add('drag-over'); }
+function drgLv(i) { document.getElementById('z'+i).classList.remove('drag-over'); }
+function drpFile(e, i) { e.preventDefault(); drgLv(i); const f = e.dataTransfer.files[0]; if (f) handleFile(f, i); }
+
+function handleFile(f, i) {
+  files[i] = f;
+  const z = document.getElementById('z'+i);
+  z.className = 'upload-zone done';
+  const rd = new FileReader();
+  rd.onload = ev => {
+    z.innerHTML = `<img src="${ev.target.result}" class="uz-preview"><div class="uz-fname">✓ ${f.name}</div><div class="uz-label" style="margin-top:5px;">${LABELS[i]}</div>`;
+  };
+  rd.readAsDataURL(f);
+  document.getElementById('btn-analyze').disabled = !files.every(Boolean);
+}
+
+function resetUpload() {
+  files = [null, null, null];
+  patientName = '';
+  show('screen-upload'); hide('screen-result');
+  const pn = document.getElementById('patient-name'); if(pn) pn.value = '';
+  for (let i = 0; i < 3; i++) {
+    const z = document.getElementById('z'+i);
+    z.className = 'upload-zone';
+    z.innerHTML = `<input type="file" accept="image/*" onchange="fileSel(event,${i})"><div class="uz-icon">${ICONS[i]}</div><div class="uz-label">${LABELS[i]}</div><div class="uz-desc">${DESCS[i]}</div>`;
+    z.ondragover = e => drgOvr(e, i);
+    z.ondragleave = () => drgLv(i);
+    z.ondrop = e => drpFile(e, i);
+  }
+  document.getElementById('btn-analyze').disabled = true;
+  hideErr();
+}
+
+/* ═══════════════════════════════════════════════════
+   MODEL CONFIG & ERROR HELPER
+═══════════════════════════════════════════════════ */
+// 이미지 분석: 비전 지원 모델 필요 → sonnet
+const MODEL_ANALYSIS = 'claude-sonnet-4-6';
+// 골반 재생성: 텍스트만 → 빠르고 저렴한 haiku
+const MODEL_REGEN    = 'claude-haiku-4-5-20251001';
+
+// API 오류 객체를 사람이 읽을 수 있는 메시지로 변환
+function parseApiError(errBody) {
+  // errBody 가 문자열 JSON 일 수도 있음
+  let obj = errBody;
+  if (typeof errBody === 'string') {
+    try { obj = JSON.parse(errBody); } catch { return errBody; }
+  }
+  // 사용량 한도 초과
+  if (obj?.type === 'exceeded_limit' || obj?.error?.type === 'exceeded_limit') {
+    const win = obj.windows || obj.error?.windows || {};
+    const h5 = win['5h'];
+    if (h5?.resets_at) {
+      const resetTime = new Date(h5.resets_at * 1000).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+      return `API 사용량 한도 초과 — ${resetTime} 이후 다시 시도해 주세요 (5시간 단위 한도)`;
+    }
+    return 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  // rate_limit
+  if (obj?.error?.type === 'rate_limit_error' || obj?.type === 'rate_limit_error') {
+    return 'API 요청 한도 초과 — 1분 후 다시 시도해 주세요.';
+  }
+  // authentication
+  if (obj?.error?.type === 'authentication_error') {
+    return 'API 키가 유효하지 않습니다. 키를 다시 확인해 주세요.';
+  }
+  // overload
+  if (obj?.error?.type === 'overloaded_error') {
+    return 'Anthropic 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해 주세요.';
+  }
+  // 일반 메시지
+  return obj?.error?.message || obj?.message || JSON.stringify(obj);
+}
+
+/* ═══════════════════════════════════════════════════
+   SYSTEM PROMPT
+═══════════════════════════════════════════════════ */
+const SYSTEM = `당신은 3D 체형 스캔 이미지를 분석하여 자세 불균형, 근육 불균형을 진단하고 맞춤형 교정 운동을 처방하는 전문 분석가입니다.
+
+사용자가 제공하는 3가지 이미지:
+1. 측면 3D 스캔 — 수직 기준선 대비 자세 정렬 확인용
+2. 수치 측정 테이블 — 척주높이, 어깨, 견갑, 허리, 배꼽, 배꼽아래 간격(cm)
+3. 등면 컨투어 맵 — 색상 분포(녹색=돌출, 청색=평탄)로 체표면 불균형 확인용
+
+분석 절차:
+Step 1 — 측면 이미지: 두부전방이동, 흉추/요추 상태, 복부돌출, 무게중심 평가
+Step 2 — 수치 해석: 편차가 큰 부위 우선순위 정렬. 2.0cm 이상은 alert:true로 표시
+Step 3 — 컨투어 맵: 붉은 점 위치와 녹색 패턴으로 비대칭 부위 특정
+Step 4 — 근육 불균형: 과긴장(단축) vs 약화(신장) 근육 분류 (두부·경추 / 견갑·흉추 / 요추·복부·골반)
+Step 5 — 운동 처방: 스트레칭 + 강화 운동 (운동명, 세트/횟수/빈도, 수행 방법)
+Step 6 — 주간 프로그램: 7일 루틴 + 12주 단계별 목표(활성화→안정화→기능화)
+
+[필수 규칙]
+- 반드시 순수 JSON만 반환하세요. 코드블록(\`\`\`)이나 설명 텍스트는 절대 포함 금지.
+- 모든 문자열 값은 null, undefined, 빈 문자열 없이 실제 내용을 채우세요.
+- 필드명은 아래 예시와 정확히 동일하게 사용하세요 (name, sets, reps, freq, desc, text, type 등).
+- stretches와 strengthening의 neck/shoulder/lumbar 배열에 각각 최소 2개 이상 운동 포함.
+- weekly는 mon/tue/wed/thu/fri/sat/sun 7개 키 모두 포함, 각 배열에 1개 이상 항목 필수.
+- phases는 cls가 ph1/ph2/ph3인 3개 항목 필수.
+
+{"metrics":[{"label":"척주높이차","value":"1.2","unit":"cm","alert":false,"note":"정상 범위"},{"label":"어깨높이차","value":"2.3","unit":"cm","alert":true,"note":"좌측 높음"}],"posture_summary":"측면 자세 분석 2-3문장. 두부전방이동 여부와 흉추/요추 상태를 구체적으로 기술.","muscles":{"neck":{"tight":[{"name":"흉쇄유돌근","desc":"두부 전방이동으로 단축"}],"weak":[{"name":"경추 심부굴곡근","desc":"두부 전방이동 시 약화"}]},"shoulder":{"tight":[{"name":"소흉근","desc":"어깨 전방 경사로 단축","star":true}],"weak":[{"name":"하부 승모근","desc":"견갑골 안정화 약화","star":true}]},"lumbar":{"tight":[{"name":"장요근","desc":"골반 전방 경사로 단축"}],"weak":[{"name":"복횡근","desc":"복부 안정화 약화"}]}},"stretches":{"neck":[{"name":"흉쇄유돌근 스트레칭","sets":"2세트","reps":"30초","freq":"매일 2회","desc":"바로 앉아 고개를 반대편으로 기울이고 손으로 가볍게 당긴다","star":false},{"name":"후경부 스트레칭","sets":"2세트","reps":"30초","freq":"매일 2회","desc":"턱을 가슴쪽으로 당기며 후두부를 늘린다","star":false}],"shoulder":[{"name":"소흉근 스트레칭","sets":"3세트","reps":"30초","freq":"매일","desc":"문틀에 팔꿈치를 대고 몸을 앞으로 밀어 가슴을 연다","star":true},{"name":"흉추 신전 스트레칭","sets":"3세트","reps":"10회","freq":"매일","desc":"폼롤러를 흉추에 두고 등을 뒤로 젖힌다","star":false}],"lumbar":[{"name":"장요근 스트레칭","sets":"3세트","reps":"45초","freq":"매일","desc":"런지 자세로 골반을 앞으로 밀어준다","star":false},{"name":"이상근 스트레칭","sets":"2세트","reps":"30초","freq":"매일","desc":"누워 한쪽 발목을 반대편 무릎 위에 올리고 무릎을 가슴으로 당긴다","star":false}]},"strengthening":{"neck":[{"name":"경추 심부굴곡근 강화","sets":"3세트","reps":"10회","freq":"매일","desc":"누워 턱을 당기며 고개를 5cm 들어 10초 유지한다","star":false},{"name":"목 등척성 저항 운동","sets":"3세트","reps":"10회","freq":"주 5회","desc":"손바닥으로 이마를 밀고 목으로 저항하며 10초 유지한다","star":false}],"shoulder":[{"name":"밴드 외회전","sets":"3세트","reps":"15회","freq":"주 5회","desc":"팔꿈치를 옆구리에 붙이고 밴드를 잡아 팔을 바깥으로 돌린다","star":true},{"name":"Y-T-W 운동","sets":"3세트","reps":"12회","freq":"주 4회","desc":"엎드려 팔을 Y, T, W 형태로 들어올려 견갑골을 조인다","star":true}],"lumbar":[{"name":"데드버그","sets":"3세트","reps":"10회","freq":"매일","desc":"누워 팔다리를 들고 복횡근을 유지하며 반대편 팔다리를 뻗는다","star":false},{"name":"클램쉘","sets":"3세트","reps":"15회","freq":"매일","desc":"옆으로 누워 발을 모은 채 위쪽 무릎을 조개처럼 벌린다","star":false}]},"weekly":{"mon":[{"text":"경추 스트레칭","type":"stretch"},{"text":"밴드 외회전","type":"strength"}],"tue":[{"text":"장요근 스트레칭","type":"stretch"},{"text":"데드버그","type":"strength"}],"wed":[{"text":"유산소 20분","type":"cardio"}],"thu":[{"text":"흉추 스트레칭","type":"stretch"},{"text":"Y-T-W 운동","type":"strength"}],"fri":[{"text":"전신 스트레칭","type":"stretch"},{"text":"클램쉘","type":"strength"}],"sat":[{"text":"가벼운 유산소","type":"cardio"}],"sun":[{"text":"완전 휴식","type":"rest"}]},"phases":[{"phase":"1단계 활성화","weeks":"1-4주","goal":"단축 근육 이완 및 약화 근육 신경 활성화","exercises":"스트레칭 위주, 경추 심부굴곡근, 데드버그","sessions":"주 5-6회","cls":"ph1"},{"phase":"2단계 안정화","weeks":"5-8주","goal":"코어 및 견갑 안정화 강화","exercises":"밴드 외회전, Y-T-W, 클램쉘, 플랭크","sessions":"주 5-6회","cls":"ph2"},{"phase":"3단계 기능화","weeks":"9-12주","goal":"일상 동작 패턴 교정 및 기능적 강화","exercises":"복합 운동, 스쿼트, 루마니안 데드리프트","sessions":"주 4-5회","cls":"ph3"}]}`;
+
+/* ═══════════════════════════════════════════════════
+   JSON REPAIR & PARSE
+═══════════════════════════════════════════════════ */
+
+// 괄호 스택 추적 헬퍼
+function _buildStack(s) {
+  const stk = []; let inStr = false, esc = false;
+  for (const c of s) {
+    if (esc)                         { esc = false; continue; }
+    if (c === '\\' && inStr)         { esc = true;  continue; }
+    if (c === '"')                   { inStr = !inStr; continue; }
+    if (inStr)                       continue;
+    if      (c === '{' || c === '[') stk.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') stk.pop();
+  }
+  return { stk, inStr };
+}
+
+// 잘린 JSON 복구: 열린 괄호·문자열만 닫기
+function repairJson(s) {
+  s = s.replace(/,\s*$/, '');          // 마지막 쉼표 제거
+  const { stk, inStr } = _buildStack(s);
+  if (inStr) s += '"';
+  s += stk.reverse().join('');
+  return s;
+}
+
+// 괄호 깊이 추적으로 완전한 JSON 범위를 추출
+function extractJson(s) {
+  let depth = 0, inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc)                  { esc = false; continue; }
+    if (c === '\\' && inStr)  { esc = true;  continue; }
+    if (c === '"')            { inStr = !inStr; continue; }
+    if (inStr)                continue;
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) return s.slice(0, i + 1);  // 완전한 JSON 범위 반환
+    }
+  }
+  return null; // 잘린 경우
+}
+
+// 메인 파싱 함수 — 4단계 시도
+function parseJson(raw) {
+  // 1) 코드블록 마커 제거
+  let s = raw
+    .replace(/^```json\s*/im, '')
+    .replace(/^```\s*/im, '')
+    .replace(/```\s*$/im, '')
+    .trim();
+
+  // 2) 첫 { 위치부터 시작
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error('JSON 시작 문자({)를 찾을 수 없습니다.');
+  s = s.slice(start);
+
+  // 3) 괄호 균형이 맞는 완전한 범위 추출 후 파싱 시도
+  const complete = extractJson(s);
+  if (complete) {
+    try { return JSON.parse(complete); } catch { /* 복구로 진행 */ }
+  }
+
+  // 4) 잘린 JSON → repairJson 후 파싱
+  try {
+    return JSON.parse(repairJson(s));
+  } catch (e) {
+    throw new Error('JSON 파싱 실패: ' + e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   ANALYSIS
+═══════════════════════════════════════════════════ */
+async function toB64(f) {
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(f); });
+}
+function mtype(f) {
+  return f.type === 'image/png' ? 'image/png' : f.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
+}
+
+async function runAnalysis() {
+  patientName = document.getElementById('patient-name').value.trim();
+  document.getElementById('btn-analyze').disabled = true;
+  hideErr();
+  hide('screen-upload'); show('screen-loading');
+
+  // Animate steps
+  let si = 0;
+  document.getElementById('ls'+si).classList.add('active');
+  const stepTimer = setInterval(()=>{
+    document.getElementById('ls'+si)?.classList.remove('active');
+    si = (si+1) % 6;
+    document.getElementById('ls'+si)?.classList.add('active');
+    document.getElementById('load-txt').textContent = STEPS[si];
+  }, 2800);
+
+  try {
+    const [b0,b1,b2] = await Promise.all(files.map(toB64));
+    const [m0,m1,m2] = files.map(mtype);
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: MODEL_ANALYSIS,
+        max_tokens: 8192,
+        system: SYSTEM,
+        messages: [{
+          role: 'user',
+          content: [
+            {type:'image', source:{type:'base64', media_type:m0, data:b0}},
+            {type:'image', source:{type:'base64', media_type:m1, data:b1}},
+            {type:'image', source:{type:'base64', media_type:m2, data:b2}},
+            {type:'text', text:'위 3가지 이미지를 분석하여 지시된 JSON 형식으로 결과를 출력하세요.'}
+          ]
+        }]
+      })
+    });
+
+    clearInterval(stepTimer);
+    for (let i=0;i<6;i++) document.getElementById('ls'+i)?.classList.remove('active');
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      throw new Error(parseApiError(err));
+    }
+
+    const data = await resp.json();
+    if (!data.content || !data.content.length) throw new Error('API 응답이 비어 있습니다.');
+
+    const raw = data.content.map(c=>c.text||'').join('');
+    if (!raw.trim()) throw new Error('API가 빈 텍스트를 반환했습니다.');
+
+    const parsed = parseJson(raw);
+    renderResult(parsed);
+
+  } catch(e) {
+    clearInterval(stepTimer);
+    hide('screen-loading'); show('screen-upload');
+    showErr('<strong>오류:</strong> ' + e.message);
+    document.getElementById('btn-analyze').disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════ */
+function renderResult(r) {
+  result = r;
+  pelvicCurrent = detectPelvic(r);
+  // 환자 이름 표시
+  const nameEl = document.getElementById('result-patient-name');
+  if (nameEl) nameEl.textContent = patientName ? `— ${patientName} 님` : '';
+  pelvicPending = null;
+
+  hide('screen-loading'); show('screen-result');
+  document.getElementById('pelvic-banner').style.display = 'flex';
+  document.getElementById('pelvic-status').innerHTML = '';
+  document.getElementById('pb-confirm').disabled = true;
+  updatePelvicBtns(pelvicCurrent);
+
+  // Metrics
+  document.getElementById('metrics-row').innerHTML = (r.metrics||[]).map(m=>`
+    <div class="mc">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-val${m.alert?' alert':''}">${m.value}<span style="font-size:12px;color:var(--text3);font-family:'Noto Sans KR',sans-serif;">${m.unit||''}</span></div>
+      <div class="mc-sub${m.alert?' alert':''}">${m.alert?'★ 핵심 교정':(m.note||'')}</div>
+    </div>`).join('');
+
+  renderAllTabs(r);
+  switchTabById('muscles');
+}
+
+function renderAllTabs(r) {
+  document.getElementById('tab-muscles').innerHTML    = buildMuscles(r);
+  document.getElementById('tab-stretch').innerHTML    = buildExercises(r.stretches);
+  document.getElementById('tab-strengthen').innerHTML = buildExercises(r.strengthening);
+  document.getElementById('tab-program').innerHTML    = buildProgram(r);
+}
+
+function buildMuscles(r) {
+  let h = '';
+  if (r.posture_summary) {
+    const summaryText = patientName
+      ? `<strong>${patientName} 님의 자세 분석 요약</strong><br>${r.posture_summary}`
+      : `<strong>자세 분석 요약</strong><br>${r.posture_summary}`;
+    h += `<div class="notice">${summaryText}</div>`;
+  }
+  const tiltLabel = {anterior:'전방 경사 (과전만)', neutral:'정상', posterior:'후방 경사 (평평한 등)'}[pelvicCurrent]||'';
+  h += `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;padding:4px 12px;background:rgba(200,180,154,.1);border-radius:var(--r-sm);font-size:11px;color:var(--accent);">골반 경사: <strong>${tiltLabel}</strong></div>`;
+  const regions = [{k:'neck',l:'두부·경추 영역'},{k:'shoulder',l:'견갑·흉추 영역'},{k:'lumbar',l:'요추·복부·골반 영역'}];
+  for (const rg of regions) {
+    const d = r.muscles?.[rg.k]; if (!d) continue;
+    h += `<div class="sec-lbl">${rg.l}</div><div class="card-grid">`;
+    for (const m of (d.tight||[])) h += `<div class="muscle-card tight"><span class="bdg bdg-tight">과긴장</span>${m.star?'<span class="bdg bdg-star">★핵심</span>':''}<div class="muscle-name">${m.name}</div><div class="muscle-desc">${m.desc}</div></div>`;
+    for (const m of (d.weak||[]))  h += `<div class="muscle-card weak"><span class="bdg bdg-weak">약화</span>${m.star?'<span class="bdg bdg-star">★핵심</span>':''}<div class="muscle-name">${m.name}</div><div class="muscle-desc">${m.desc}</div></div>`;
+    h += '</div>';
+  }
+  return h;
+}
+
+// undefined/null 값을 안전하게 문자열로 변환
+function safeStr(v, fallback) {
+  if (v === undefined || v === null || v === 'undefined' || v === 'null') return fallback || '';
+  return String(v).trim();
+}
+
+// "2세트 × 30초 × 매일" 처럼 합쳐진 문자열을 분리
+function splitCombined(str) {
+  if (!str) return ['', '', ''];
+  // × 또는 x 또는 / 로 구분된 경우 분리
+  const parts = str.split(/[×x\/]\s*/).map(s => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return [parts[0]||'', parts[1]||'', parts[2]||''];
+  return [str, '', ''];
+}
+
+// API가 필드명을 다르게 반환하거나 합쳐서 반환하는 경우 모두 처리
+function normalizeExercise(ex) {
+  let sets = safeStr(ex.sets || ex.set || ex.세트, '');
+  let reps = safeStr(ex.reps || ex.rep || ex.count || ex.횟수 || ex.시간, '');
+  let freq = safeStr(ex.freq || ex.frequency || ex.빈도, '');
+
+  // sets에 × 가 포함되어 있으면 합쳐진 것으로 판단 → 분리
+  if (sets && (sets.includes('×') || sets.includes('x') || sets.includes('/'))) {
+    const [s, r, f] = splitCombined(sets);
+    sets = s; reps = reps || r; freq = freq || f;
+  }
+
+  // desc가 실제 수행 방법 대신 세트 정보인 경우 처리
+  const rawDesc = safeStr(ex.desc || ex.description || ex.method || ex.수행방법 || ex.방법, '');
+
+  return {
+    name: safeStr(ex.name || ex.exercise_name || ex.운동명, '운동명 없음'),
+    sets, reps, freq,
+    desc: rawDesc,
+    star: !!ex.star
+  };
+}
+
+function buildExercises(data) {
+  if (!data) return '<div class="notice">운동 처방 데이터가 없습니다.</div>';
+  const regions = [{k:'neck',l:'두부·경추'},{k:'shoulder',l:'견갑·흉추'},{k:'lumbar',l:'요추·골반'}];
+  let h = '';
+  let hasAny = false;
+  for (const rg of regions) {
+    const raw = data?.[rg.k];
+    if (!Array.isArray(raw) || !raw.length) continue;
+    hasAny = true;
+    h += `<div class="sec-lbl">${rg.l}</div>`;
+    for (const rawEx of raw) {
+      if (!rawEx || typeof rawEx !== 'object') continue;
+      const ex = normalizeExercise(rawEx);
+      const tags = [ex.sets, ex.reps, ex.freq].filter(Boolean);
+      h += `
+      <div class="ex-card">
+        <div class="ex-hdr">
+          <div class="ex-name">${ex.star ? '★ ' : ''}${ex.name}</div>
+          ${tags.length ? `<div class="ex-tags">${tags.map(t=>`<span class="ex-tag">${t}</span>`).join('')}</div>` : ''}
+        </div>
+        ${ex.desc ? `<div class="ex-desc">${ex.desc}</div>` : ''}
+      </div>`;
+    }
+  }
+  return hasAny ? h : '<div class="notice">운동 처방 데이터가 없습니다.</div>';
+}
+
+function buildProgram(r) {
+  const days = {mon:'월',tue:'화',wed:'수',thu:'목',fri:'금',sat:'토',sun:'일'};
+  let h = '<div class="sec-lbl">주간 루틴표</div><div class="weekly-grid">';
+  for (const [k,l] of Object.entries(days)) {
+    h += `<div class="day-col"><div class="day-name">${l}</div>`;
+    const items = r.weekly?.[k];
+    const VALID_TYPES = new Set(['stretch','strength','cardio','rest']);
+    if (Array.isArray(items) && items.length > 0) {
+      for (const it of items) {
+        if (!it) continue;
+        if (typeof it === 'string') {
+          if (it.trim()) h += `<div class="day-item rest">${it.trim()}</div>`;
+          continue;
+        }
+        if (typeof it !== 'object') continue;
+        const text = safeStr(it.text || it.name || it.운동 || it.activity, '');
+        let type = safeStr(it.type || it.category || it.종류, '').toLowerCase();
+        if (!VALID_TYPES.has(type)) {
+          if (/스트레칭|stretch|이완/i.test(text)) type = 'stretch';
+          else if (/강화|근력|운동|strength|훈련/i.test(text)) type = 'strength';
+          else if (/유산소|걷기|달리기|cardio/i.test(text)) type = 'cardio';
+          else if (/휴식|rest|쉬/i.test(text)) type = 'rest';
+          else type = 'strength';
+        }
+        if (text) h += `<div class="day-item ${type}">${text}</div>`;
+      }
+    } else {
+      h += `<div class="day-item rest">휴식</div>`;
+    }
+    h += '</div>';
+  }
+  h += '</div><div class="sec-lbl">12주 단계별 목표</div>';
+  h += '<table class="phase-table"><thead><tr><th>단계</th><th>기간</th><th>목표</th><th>중점 운동</th><th>세션</th></tr></thead><tbody>';
+  for (const p of (r.phases||[])) {
+    if (!p || typeof p !== 'object') continue;
+    const phase    = safeStr(p.phase    || p.단계, '');
+    const weeks    = safeStr(p.weeks    || p.기간, '');
+    const goal     = safeStr(p.goal     || p.목표, '');
+    const exercises= safeStr(p.exercises|| p.중점운동 || p.exercise, '');
+    const sessions = safeStr(p.sessions || p.세션, '');
+    const cls      = safeStr(p.cls, 'ph1');
+    h += `<tr>
+      <td><span class="phase-badge ${cls}">${phase}</span></td>
+      <td style="white-space:nowrap;">${weeks}</td>
+      <td>${goal}</td>
+      <td>${exercises}</td>
+      <td style="white-space:nowrap;">${sessions}</td>
+    </tr>`;
+  }
+  h += '</tbody></table>';
+  return h;
+}
+
+/* ═══════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════ */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+function switchTabById(id) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelector(`.tab-btn[onclick*="'${id}'"]`)?.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════
+   PELVIC TILT
+═══════════════════════════════════════════════════ */
+function detectPelvic(r) {
+  const target = JSON.stringify({s:r.posture_summary||'',l:r.muscles?.lumbar||{}}).toLowerCase();
+  const ant = (target.match(/전방 경사/g)||[]).length*3+(target.match(/과전만/g)||[]).length*3+(target.match(/장요근/g)||[]).length*2;
+  const pos = (target.match(/후방 경사/g)||[]).length*3+(target.match(/평평한 등/g)||[]).length*3+(target.match(/햄스트링 단축/g)||[]).length*2;
+  if (!ant && !pos) return 'neutral';
+  return ant >= pos ? 'anterior' : 'posterior';
+}
+
+function updatePelvicBtns(cur) {
+  ['anterior','neutral','posterior'].forEach(t=>{
+    const b = document.getElementById('pb-'+t.slice(0,3));
+    if(!b)return; b.classList.remove('active','selected');
+  });
+  const map = {anterior:'ant',neutral:'neu',posterior:'pos'};
+  document.getElementById('pb-'+map[cur])?.classList.add('active');
+}
+
+function selPelvic(tilt) {
+  ['ant','neu','pos'].forEach(t=>document.getElementById('pb-'+t)?.classList.remove('active','selected'));
+  const map = {anterior:'ant',neutral:'neu',posterior:'pos'};
+  if (tilt === pelvicCurrent) {
+    document.getElementById('pb-'+map[tilt])?.classList.add('active');
+    pelvicPending = null;
+    document.getElementById('pb-confirm').disabled = true;
+  } else {
+    document.getElementById('pb-'+map[tilt])?.classList.add('selected');
+    pelvicPending = tilt;
+    document.getElementById('pb-confirm').disabled = false;
+  }
+}
+
+function confirmPelvic() {
+  if (!result || !pelvicPending) return;
+  const tilt = pelvicPending;
+  pelvicPending = null;
+  pelvicCurrent = tilt;
+  updatePelvicBtns(tilt);
+  document.getElementById('pb-confirm').disabled = true;
+  const tiltLabel = {anterior:'전방 경사 (과전만)',neutral:'정상',posterior:'후방 경사 (평평한 등)'}[tilt];
+  const st = document.getElementById('pelvic-status');
+  st.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="ring" style="width:14px;height:14px;border-width:1.5px;"></div><span style="font-size:11px;color:var(--accent);">골반 경사 <strong>${tiltLabel}</strong> 적용 중...</span></div>`;
+  rerunPelvic(tilt);
+}
+
+const PELV_SYSTEM = `당신은 자세 분석 전문가입니다. 골반 경사 유형에 맞는 새 내용을 JSON으로만 반환합니다. JSON 외 텍스트는 절대 출력하지 않습니다.`;
+
+async function rerunPelvic(tilt) {
+  const tiltLabel = {anterior:'전방 경사 (과전만)',neutral:'정상',posterior:'후방 경사 (평평한 등)'}[tilt];
+
+  // 반드시 포함해야 할 필드를 JSON 스켈레톤으로 명시
+  const skeleton = `{
+  "posture_summary": "골반 경사 유형을 반영한 자세 분석 2-3문장",
+  "muscles": {
+    "neck": (기존 유지 데이터에서 그대로 복사),
+    "shoulder": (기존 유지 데이터에서 그대로 복사),
+    "lumbar": {
+      "tight": [{"name":"근육명","desc":"설명"}],
+      "weak":  [{"name":"근육명","desc":"설명"}]
+    }
+  },
+  "stretches": {
+    "neck":     [{"name":"운동명","sets":"2세트","reps":"30초","freq":"매일 2회","desc":"수행 방법","star":false}],
+    "shoulder": [{"name":"운동명","sets":"3세트","reps":"30초","freq":"매일","desc":"수행 방법","star":true}],
+    "lumbar":   [{"name":"운동명","sets":"3세트","reps":"45초","freq":"매일","desc":"수행 방법","star":false}]
+  },
+  "strengthening": {
+    "neck":     [{"name":"운동명","sets":"3세트","reps":"10회","freq":"매일","desc":"수행 방법","star":false}],
+    "shoulder": [{"name":"운동명","sets":"3세트","reps":"15회","freq":"주 5회","desc":"수행 방법","star":true}],
+    "lumbar":   [{"name":"운동명","sets":"3세트","reps":"15회","freq":"매일","desc":"수행 방법","star":false}]
+  },
+  "weekly": {
+    "mon": [{"text":"운동명","type":"stretch"},{"text":"운동명","type":"strength"}],
+    "tue": [{"text":"운동명","type":"strength"}],
+    "wed": [{"text":"유산소 20분","type":"cardio"}],
+    "thu": [{"text":"운동명","type":"stretch"},{"text":"운동명","type":"strength"}],
+    "fri": [{"text":"운동명","type":"strength"}],
+    "sat": [{"text":"가벼운 유산소","type":"cardio"}],
+    "sun": [{"text":"완전 휴식","type":"rest"}]
+  },
+  "phases": [
+    {"phase":"1단계 활성화","weeks":"1-4주","goal":"목표","exercises":"중점 운동","sessions":"주 5-6회","cls":"ph1"},
+    {"phase":"2단계 안정화","weeks":"5-8주","goal":"목표","exercises":"중점 운동","sessions":"주 5-6회","cls":"ph2"},
+    {"phase":"3단계 기능화","weeks":"9-12주","goal":"목표","exercises":"중점 운동","sessions":"주 4-5회","cls":"ph3"}
+  ]
+}`;
+
+  // [필수 규칙] sets/reps/freq는 반드시 별도 필드로 분리 — "2세트 × 30초"처럼 합치지 말 것
+  // weekly type은 반드시 stretch/strength/cardio/rest 중 하나만 사용
+
+  const prompt = `사용자가 골반 경사를 "${tiltLabel}"으로 직접 지정했습니다.
+이전 이미지 분석 결과의 골반 판단은 완전히 무시하고, 아래 기준으로 전체를 재생성하세요.
+
+[골반 경사별 근육 패턴]
+- 전방 경사(과전만): 장요근·대퇴직근·요추기립근 단축(과긴장) / 복횡근·대둔근·햄스트링 약화
+- 후방 경사(평평한 등): 햄스트링·복직근·중둔근 단축(과긴장) / 장요근·요추신전근·다열근 약화
+- 정상: 경미한 불균형만 기술
+
+[반드시 아래 7개 키를 모두 포함한 JSON으로만 응답하세요]
+${skeleton}
+
+[유지할 데이터 (neck·shoulder·metrics는 그대로 복사)]
+${JSON.stringify({metrics:result.metrics, muscles:{neck:result.muscles?.neck, shoulder:result.muscles?.shoulder}})}
+
+주의: stretches·strengthening은 neck/shoulder/lumbar 3개 영역 모두 포함, weekly는 mon~sun 7일 모두 포함, phases는 3단계 모두 포함해야 합니다. JSON 외 다른 텍스트는 절대 출력하지 마세요.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
+      body:JSON.stringify({model:MODEL_REGEN,max_tokens:8000,system:PELV_SYSTEM,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(parseApiError(data.error || data));
+    const raw = data.content.map(c=>c.text||'').join('');
+    if (!raw.trim()) throw new Error('API 응답이 비어 있습니다.');
+
+    const updated = parseJson(raw);
+
+    // 각 필드를 명시적으로 병합 — 스프레드 연산자 대신 키별 직접 할당으로 누락 방지
+    result = {
+      metrics:        result.metrics,                                          // 유지
+      posture_summary: updated.posture_summary || result.posture_summary,
+      muscles: {
+        neck:     updated.muscles?.neck     || result.muscles?.neck,           // 유지
+        shoulder: updated.muscles?.shoulder || result.muscles?.shoulder,       // 유지
+        lumbar:   updated.muscles?.lumbar   || result.muscles?.lumbar          // 재생성
+      },
+      stretches:      updated.stretches      || result.stretches,
+      strengthening:  updated.strengthening  || result.strengthening,
+      weekly:         updated.weekly         || result.weekly,
+      phases:         updated.phases         || result.phases
+    };
+
+    renderAllTabs(result);
+
+    const st = document.getElementById('pelvic-status');
+    st.innerHTML = `<span style="font-size:11px;color:var(--green);">✓ <strong>${tiltLabel}</strong> 기준으로 재생성 완료</span>`;
+  } catch(e) {
+    const errMsg = (typeof e.message === 'string' && e.message.startsWith('{'))
+      ? parseApiError(e.message) : e.message;
+    document.getElementById('pelvic-status').innerHTML = `<span style="font-size:11px;color:var(--red);">⚠ 재생성 실패: ${errMsg}</span>`;
+    updatePelvicBtns(pelvicCurrent);
+    document.getElementById('pb-confirm').disabled = true;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   PDF EXPORT  — window.print() 직접 방식 (Edge/Chrome 호환)
+═══════════════════════════════════════════════════ */
+function togglePdfMenu() {
+  const m = document.getElementById('pdf-menu');
+  m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+}
+document.addEventListener('click', ev => {
+  const w = document.getElementById('pdf-drop-wrap');
+  if (w && !w.contains(ev.target)) document.getElementById('pdf-menu').style.display = 'none';
+});
+
+/* ── PDF 콘텐츠 HTML 생성 ── */
+function buildPrintHtml(section) {
+  const now  = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'});
+  const tiltLabel = {anterior:'전방 경사 (과전만)', neutral:'정상', posterior:'후방 경사 (평평한 등)'}[pelvicCurrent] || '';
+  const titles = {all:'전체 보고서', muscles:'근육 불균형', stretch:'스트레칭 처방', strengthen:'강화 운동 처방', program:'주간 프로그램'};
+  const LOGO  = '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';
+
+  /* 헬퍼 */
+  function hdr() {
+    const pName = patientName ? `<div class="pr-patient">환자: ${patientName} 님</div>` : '';
+    return `<div class="pr-hdr">
+      <div><div class="pr-logo">Posture<em>AI</em><span class="pr-sub"> ${titles[section]}</span></div>${pName}</div>
+      <div class="pr-info">골반 경사: ${tiltLabel}<br>출력일: ${now}</div>
+    </div>`;
+  }
+  function pMetrics() {
+    return `<div class="pr-metrics">${(result.metrics||[]).map(m=>`
+      <div class="pr-mc">
+        <div class="pr-mc-lbl">${m.label}</div>
+        <div class="pr-mc-val${m.alert?' alert':''}">${m.value}<span class="pr-mc-unit">${m.unit||''}</span></div>
+        <div class="pr-mc-sub${m.alert?' alert':''}">${m.alert?'★ 핵심':(m.note||'')}</div>
+      </div>`).join('')}</div>`;
+  }
+  function pSummary() {
+    if (!result.posture_summary) return '';
+    const t = patientName ? `${patientName} 님의 자세 분석 요약` : '자세 분석 요약';
+    return `<div class="pr-summary"><div class="pr-sum-ttl">${t}</div><div>${result.posture_summary}</div></div>`;
+  }
+  function pPelvic() {
+    return `<div class="pr-pelvic-tag">골반 경사: ${tiltLabel}</div>`;
+  }
+  function pMuscles() {
+    const regs = [{k:'neck',l:'두부·경추 영역'},{k:'shoulder',l:'견갑·흉추 영역'},{k:'lumbar',l:'요추·복부·골반 영역'}];
+    let h = '';
+    for (const rg of regs) {
+      const d = result.muscles?.[rg.k]; if (!d) continue;
+      h += `<div class="pr-sec">${rg.l}</div><div class="pr-mgrid">`;
+      for (const m of (d.tight||[])) h += `<div class="pr-mcard tight"><span class="pr-bdg tight">과긴장</span>${m.star?'<span class="pr-bdg star">★</span>':''}<div class="pr-mn">${m.name||''}</div><div class="pr-md">${m.desc||''}</div></div>`;
+      for (const m of (d.weak||[]))  h += `<div class="pr-mcard weak"><span class="pr-bdg weak">약화</span>${m.star?'<span class="pr-bdg star">★</span>':''}<div class="pr-mn">${m.name||''}</div><div class="pr-md">${m.desc||''}</div></div>`;
+      h += '</div>';
+    }
+    return h;
+  }
+  function pExercises(data, label) {
+    const regs = [{k:'neck',l:'두부·경추'},{k:'shoulder',l:'견갑·흉추'},{k:'lumbar',l:'요추·골반'}];
+    let h = label ? `<div class="pr-section-title">${label}</div>` : '';
+    for (const rg of regs) {
+      const items = data?.[rg.k]; if (!items?.length) continue;
+      h += `<div class="pr-sec">${rg.l}</div><div class="pr-exgrid">`;
+      for (const rawEx of items) {
+        if (!rawEx) continue;
+        const ex = normalizeExercise(rawEx);
+        const tags = [ex.sets, ex.reps, ex.freq].filter(Boolean);
+        h += `<div class="pr-excard">
+          <div class="pr-exname">${ex.star?'★ ':''}${ex.name}</div>
+          ${tags.length?`<div class="pr-extags">${tags.map(t=>`<span class="pr-extag">${t}</span>`).join('')}</div>`:''}
+          ${ex.desc?`<div class="pr-exdesc">${ex.desc}</div>`:''}
+        </div>`;
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+  function pProgram() {
+    const days = {mon:'월',tue:'화',wed:'수',thu:'목',fri:'금',sat:'토',sun:'일'};
+    let h = '<div class="pr-section-title">주간 루틴표</div><div class="pr-wgrid">';
+    for (const [k,l] of Object.entries(days)) {
+      h += `<div class="pr-dcol"><div class="pr-dname">${l}</div>`;
+      for (const it of (result.weekly?.[k]||[])) {
+        const text = safeStr(it.text||it.name,'');
+        const type = safeStr(it.type,'rest');
+        if (text) h += `<div class="pr-ditem ${type}">${text}</div>`;
+      }
+      h += '</div>';
+    }
+    h += '</div><div class="pr-section-title" style="margin-top:14pt;">12주 단계별 목표</div>';
+    h += '<table class="pr-ptab"><thead><tr><th>단계</th><th>기간</th><th>목표</th><th>중점 운동</th><th>세션</th></tr></thead><tbody>';
+    for (const p of (result.phases||[])) {
+      if (!p) continue;
+      h += `<tr><td><span class="pr-ph ${safeStr(p.cls,'ph1')}">${safeStr(p.phase,'')}</span></td><td class="nowrap">${safeStr(p.weeks,'')}</td><td>${safeStr(p.goal,'')}</td><td>${safeStr(p.exercises,'')}</td><td class="nowrap">${safeStr(p.sessions,'')}</td></tr>`;
+    }
+    h += '</tbody></table>';
+    return h;
+  }
+  function pFooter() {
+    return `<div class="pr-footer"><span>PostureAI — 3D 체형 스캔 기반 자세 분석 시스템</span><span>본 결과는 참고용이며 전문의 상담을 대체하지 않습니다.</span></div>`;
+  }
+
+  /* 본문 조립 */
+  const div = '<div class="pr-divider"></div>';
+  let body = hdr();
+  if (section === 'muscles' || section === 'all') body += pMetrics() + pSummary() + pPelvic() + pMuscles();
+  if (section === 'stretch')   body += pExercises(result.stretches, '');
+  if (section === 'strengthen') body += pExercises(result.strengthening, '');
+  if (section === 'program')   body += pProgram();
+  if (section === 'all') {
+    body += div + pExercises(result.stretches, '스트레칭 처방');
+    body += div + pExercises(result.strengthening, '강화 운동 처방');
+    body += div + pProgram();
+  }
+  body += pFooter();
+
+  const css = `
+    @page { size: A4 portrait; margin: 14mm 16mm 14mm 16mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', sans-serif;
+      font-size: 11pt; line-height: 1.6; color: #111; background: #fff;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    body::before {
+      content: '';
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 480pt; height: 153pt;
+      background: url('data:image/png;base64,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') center/contain no-repeat;
+      opacity: 0.07; pointer-events: none; z-index: 0;
+    }
+    .pr-hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2pt solid #111; padding-bottom:7pt; margin-bottom:12pt; position:relative; z-index:1; }
+    .pr-logo { font-size:16pt; font-weight:700; letter-spacing:-.02em; }
+    .pr-logo em { font-style:italic; color:#888; }
+    .pr-sub { font-size:9pt; color:#aaa; font-weight:400; margin-left:6pt; }
+    .pr-patient { font-size:11pt; font-weight:700; color:#2a6040; margin-top:4pt; }
+    .pr-info { font-size:8pt; color:#888; text-align:right; }
+    .pr-metrics { display:grid; grid-template-columns:repeat(6,1fr); gap:5pt; margin-bottom:11pt; position:relative; z-index:1; }
+    .pr-mc { border:0.5pt solid #ddd; border-radius:3pt; padding:5pt 6pt; text-align:center; }
+    .pr-mc-lbl { font-size:7pt; color:#888; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2pt; }
+    .pr-mc-val { font-size:15pt; font-weight:700; color:#111; line-height:1; }
+    .pr-mc-val.alert { color:#c0392b; }
+    .pr-mc-unit { font-size:7pt; font-weight:400; color:#aaa; }
+    .pr-mc-sub { font-size:7pt; color:#aaa; margin-top:2pt; }
+    .pr-mc-sub.alert { color:#c0392b; font-weight:700; }
+    .pr-summary { background:#f8f8f8; border-left:3pt solid #555; padding:7pt 10pt; font-size:10pt; color:#333; margin-bottom:10pt; line-height:1.6; position:relative; z-index:1; }
+    .pr-sum-ttl { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#888; margin-bottom:3pt; }
+    .pr-pelvic-tag { display:inline-block; background:#f0ede8; color:#888; font-size:8.5pt; padding:2pt 10pt; border-radius:10pt; margin-bottom:9pt; position:relative; z-index:1; }
+    .pr-sec { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#888; border-bottom:0.5pt solid #ddd; padding-bottom:4pt; margin:10pt 0 6pt; position:relative; z-index:1; }
+    .pr-section-title { font-size:13pt; font-weight:700; color:#111; margin:0 0 8pt; padding-bottom:5pt; border-bottom:1.5pt solid #222; position:relative; z-index:1; }
+    .pr-divider { border:none; border-top:0.5pt solid #ddd; margin:14pt 0; }
+    .pr-mgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:5pt; margin-bottom:5pt; position:relative; z-index:1; }
+    .pr-mcard { border:0.5pt solid #e0e0e0; border-radius:3pt; padding:6pt 7pt; page-break-inside:avoid; background:#fff; }
+    .pr-mcard.tight { border-left:2.5pt solid #c0392b; }
+    .pr-mcard.weak  { border-left:2.5pt solid #2980b9; }
+    .pr-bdg { font-size:7pt; font-weight:700; text-transform:uppercase; padding:1.5pt 5pt; border-radius:2pt; display:inline-block; margin-bottom:3pt; }
+    .pr-bdg.tight { background:#fde8e5; color:#c0392b; }
+    .pr-bdg.weak  { background:#e3edf8; color:#2980b9; }
+    .pr-bdg.star  { background:#fde8e5; color:#c0392b; margin-left:3pt; }
+    .pr-mn { font-size:9.5pt; font-weight:700; color:#111; margin-bottom:3pt; }
+    .pr-md { font-size:8.5pt; color:#555; line-height:1.45; }
+    .pr-exgrid { display:grid; grid-template-columns:repeat(2,1fr); gap:6pt; margin-bottom:5pt; position:relative; z-index:1; }
+    .pr-excard { border:0.5pt solid #e0e0e0; border-radius:3pt; padding:7pt 8pt; page-break-inside:avoid; background:#fff; }
+    .pr-exname { font-size:10pt; font-weight:700; color:#111; margin-bottom:4pt; }
+    .pr-extags { display:flex; gap:4pt; flex-wrap:wrap; margin-bottom:4pt; }
+    .pr-extag { font-size:8pt; padding:1.5pt 6pt; border-radius:2pt; background:#f0f0f0; color:#555; }
+    .pr-exdesc { font-size:9pt; color:#555; line-height:1.5; }
+    .pr-wgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5pt; margin-bottom:10pt; position:relative; z-index:1; }
+    .pr-dcol { border:0.5pt solid #ddd; border-radius:3pt; padding:5pt 4pt; text-align:center; background:#fff; }
+    .pr-dname { font-size:8pt; font-weight:700; color:#888; margin-bottom:4pt; }
+    .pr-ditem { font-size:7.5pt; padding:2.5pt 3pt; border-radius:2pt; margin-bottom:3pt; line-height:1.35; }
+    .pr-ditem.stretch  { background:#fde8e5; color:#c0392b; }
+    .pr-ditem.strength { background:#e3edf8; color:#2980b9; }
+    .pr-ditem.cardio   { background:#fef9ec; color:#a07830; }
+    .pr-ditem.rest     { background:#f0f0f0; color:#888; }
+    .pr-ptab { width:100%; border-collapse:collapse; font-size:9.5pt; position:relative; z-index:1; }
+    .pr-ptab th { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#888; padding:5pt 7pt; border-bottom:1pt solid #ddd; text-align:left; }
+    .pr-ptab td { padding:6pt 7pt; border-bottom:0.5pt solid #eee; color:#333; vertical-align:top; background:#fff; }
+    .nowrap { white-space:nowrap; }
+    .pr-ph { font-size:8.5pt; font-weight:700; padding:2.5pt 8pt; border-radius:3pt; display:inline-block; }
+    .pr-ph.ph1 { background:#f5f0e8; color:#8a7040; }
+    .pr-ph.ph2 { background:#e8f0f5; color:#2060a0; }
+    .pr-ph.ph3 { background:#eaf5ee; color:#207040; }
+    .pr-footer { margin-top:10pt; padding-top:6pt; border-top:0.5pt solid #ddd; font-size:8pt; color:#bbb; display:flex; justify-content:space-between; position:relative; z-index:1; }
+  `;
+
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${css}</style></head><body>${body}</body></html>`;
+}
+
+/* ── 실제 PDF 저장: 현재 페이지에 인쇄 스타일 주입 후 window.print() ── */
+async function exportPdf(section) {
+  if (!result) return;
+  document.getElementById('pdf-menu').style.display = 'none';
+  const genMsg = document.getElementById('pdf-gen-msg');
+  genMsg.style.display = 'flex';
+
+  try {
+    const printContent = buildPrintHtml(section);
+
+    // ① 기존 print-container 제거
+    const old = document.getElementById('_print_container');
+    if (old) old.remove();
+    const oldStyle = document.getElementById('_print_style');
+    if (oldStyle) oldStyle.remove();
+
+    // ② 인쇄 전용 숨겨진 div 생성
+    const container = document.createElement('div');
+    container.id = '_print_container';
+    container.style.cssText = 'display:none;';
+    // iframe 내용을 직접 파싱해 넣기
+    container.innerHTML = '';
+    document.body.appendChild(container);
+
+    // ③ 인쇄 전용 <style> 주입 — @media print 에서만 보임
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(printContent, 'text/html');
+    const printCSS = Array.from(doc.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+    const printBody = doc.body.innerHTML;
+
+    const styleEl = document.createElement('style');
+    styleEl.id = '_print_style';
+    styleEl.textContent = `
+      @media print {
+        body > *:not(#_print_container) { display: none !important; }
+        #_print_container {
+          display: block !important;
+          position: fixed; top: 0; left: 0;
+          width: 100%; height: auto;
+        }
+        ${printCSS}
+      }
+    `;
+    document.head.appendChild(styleEl);
+    container.style.cssText = '';
+    container.innerHTML = printBody;
+
+    // ④ 렌더링 대기 후 window.print() 직접 호출
+    await new Promise(r => setTimeout(r, 300));
+    window.print();
+
+    // ⑤ 인쇄 후 정리
+    window.addEventListener('afterprint', () => {
+      container.remove();
+      styleEl.remove();
+    }, {once: true});
+
+  } catch(e) {
+    alert('오류가 발생했습니다: ' + e.message);
+  } finally {
+    genMsg.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════ */
+function show(id) { const el=document.getElementById(id); if(el){el.style.display=el.style.cssText.includes('flex')||id.startsWith('screen-')?'flex':'block'; if(id==='screen-setup'||id==='screen-loading'){el.style.display='flex';}else{el.style.display='block';}}}
+function hide(id) { const el=document.getElementById(id); if(el) el.style.display='none'; }
+function showErr(msg) { const b=document.getElementById('err-box'); b.innerHTML=msg; b.style.display='block'; }
+function hideErr() { document.getElementById('err-box').style.display='none'; }
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+window.onload = () => {
+  const saved = localStorage.getItem('pa_key');
+  if (saved && saved.startsWith('sk-ant-')) {
+    apiKey = saved;
+    document.getElementById('api-input').value = saved;
+    document.getElementById('screen-setup').style.display = 'none';
+    document.getElementById('screen-upload').style.display = 'block';
+    setApiStatus(true);
+  } else {
+    document.getElementById('screen-setup').style.display = 'flex';
+  }
+};
+</script>
+</body>
+</html>
