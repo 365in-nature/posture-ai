@@ -3,13 +3,23 @@
  * 브라우저 → /api/proxy → api.anthropic.com
  * 병원/회사 방화벽 우회용
  */
+
+// Vercel body 파서 — 이미지 base64 3장 포함으로 크기 20mb로 설정
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
-  // CORS 헤더 설정 — 같은 Vercel 도메인에서만 허용
+  // CORS 헤더
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
 
-  // preflight 요청 처리
+  // preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -18,10 +28,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // API 키는 요청 헤더에서 받음 (클라이언트가 전달)
+  // API 키 확인
   const apiKey = req.headers['x-api-key'];
   if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-    return res.status(401).json({ error: { type: 'authentication_error', message: 'API 키가 없거나 올바르지 않습니다.' } });
+    return res.status(401).json({
+      error: {
+        type: 'authentication_error',
+        message: 'API 키가 없거나 올바르지 않습니다.',
+      },
+    });
+  }
+
+  // body 확인
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({
+      error: {
+        type: 'invalid_request',
+        message: '요청 본문이 비어 있습니다.',
+      },
+    });
   }
 
   try {
@@ -36,8 +61,6 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-
-    // Anthropic 응답을 그대로 클라이언트에 전달
     return res.status(response.status).json(data);
 
   } catch (err) {
@@ -45,8 +68,8 @@ export default async function handler(req, res) {
     return res.status(500).json({
       error: {
         type: 'proxy_error',
-        message: '서버에서 API 호출 중 오류가 발생했습니다: ' + err.message
-      }
+        message: '서버 오류: ' + err.message,
+      },
     });
   }
 }
