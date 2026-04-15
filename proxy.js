@@ -4,14 +4,22 @@
  * 병원/회사 방화벽 우회용
  */
 
-// Vercel body 파서 — 이미지 base64 3장 포함으로 크기 20mb로 설정
+// body 파서 비활성화 — raw body를 직접 읽어서 처리 (큰 이미지 데이터 대응)
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '20mb',
-    },
+    bodyParser: false,
   },
 };
+
+// raw body를 문자열로 읽기
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    req.on('error', reject);
+  });
+}
 
 export default async function handler(req, res) {
   // CORS 헤더
@@ -19,7 +27,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
 
-  // preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -39,17 +46,20 @@ export default async function handler(req, res) {
     });
   }
 
-  // body 확인
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({
-      error: {
-        type: 'invalid_request',
-        message: '요청 본문이 비어 있습니다.',
-      },
-    });
-  }
-
   try {
+    // raw body 직접 읽기 (bodyParser 우회)
+    const rawBody = await getRawBody(req);
+
+    if (!rawBody || rawBody.trim() === '' || rawBody.trim() === '{}') {
+      return res.status(400).json({
+        error: {
+          type: 'invalid_request',
+          message: '요청 본문이 비어 있습니다.',
+        },
+      });
+    }
+
+    // Anthropic API로 그대로 전달
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -57,7 +67,7 @@ export default async function handler(req, res) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(req.body),
+      body: rawBody,  // 파싱 없이 원본 그대로 전달
     });
 
     const data = await response.json();
