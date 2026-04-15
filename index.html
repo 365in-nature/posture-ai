@@ -646,13 +646,11 @@ async function runAnalysis() {
     const [b0,b1,b2] = await Promise.all(files.map(toB64));
     const [m0,m1,m2] = files.map(mtype);
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/api/proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true'
       },
       body: JSON.stringify({
         model: MODEL_ANALYSIS,
@@ -995,9 +993,9 @@ ${JSON.stringify({metrics:result.metrics, muscles:{neck:result.muscles?.neck, sh
 주의: stretches·strengthening은 neck/shoulder/lumbar 3개 영역 모두 포함, weekly는 mon~sun 7일 모두 포함, phases는 3단계 모두 포함해야 합니다. JSON 외 다른 텍스트는 절대 출력하지 마세요.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/api/proxy', {
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
+      headers:{'Content-Type':'application/json','x-api-key':apiKey},
       body:JSON.stringify({model:MODEL_REGEN,max_tokens:8000,system:PELV_SYSTEM,messages:[{role:'user',content:prompt}]})
     });
     const data = await resp.json();
