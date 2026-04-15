@@ -484,6 +484,10 @@ const MODEL_REGEN    = 'claude-haiku-4-5-20251001';
 
 // API 오류 객체를 사람이 읽을 수 있는 메시지로 변환
 function parseApiError(errBody) {
+  // 빈 객체 {} 처리
+  if (!errBody || (typeof errBody === 'object' && Object.keys(errBody).length === 0)) {
+    return 'API 응답이 비어 있습니다. 잠시 후 다시 시도해 주세요.';
+  }
   // errBody 가 문자열 JSON 일 수도 있음
   let obj = errBody;
   if (typeof errBody === 'string') {
@@ -677,7 +681,10 @@ async function runAnalysis() {
     }
 
     const data = await resp.json();
-    if (!data.content || !data.content.length) throw new Error('API 응답이 비어 있습니다.');
+    // 빈 응답 또는 content 없는 경우 상세 오류
+    if (!data || typeof data !== 'object') throw new Error('서버에서 올바른 응답을 받지 못했습니다.');
+    if (data.error) throw new Error(parseApiError(data.error));
+    if (!data.content || !data.content.length) throw new Error('API 응답이 비어 있습니다. 다시 시도해 주세요.');
 
     const raw = data.content.map(c=>c.text||'').join('');
     if (!raw.trim()) throw new Error('API가 빈 텍스트를 반환했습니다.');
@@ -1231,55 +1238,87 @@ async function exportPdf(section) {
   try {
     const printContent = buildPrintHtml(section);
 
-    // ① 기존 print-container 제거
-    const old = document.getElementById('_print_container');
-    if (old) old.remove();
-    const oldStyle = document.getElementById('_print_style');
-    if (oldStyle) oldStyle.remove();
+    // 기존 요소 정리
+    ['_print_container','_print_style','_print_guide'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
 
-    // ② 인쇄 전용 숨겨진 div 생성
-    const container = document.createElement('div');
-    container.id = '_print_container';
-    container.style.cssText = 'display:none;';
-    // iframe 내용을 직접 파싱해 넣기
-    container.innerHTML = '';
-    document.body.appendChild(container);
-
-    // ③ 인쇄 전용 <style> 주입 — @media print 에서만 보임
-    const parser = new DOMParser();
-    const doc    = parser.parseFromString(printContent, 'text/html');
-    const printCSS = Array.from(doc.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+    // 인쇄용 HTML 파싱
+    const parser  = new DOMParser();
+    const doc     = parser.parseFromString(printContent, 'text/html');
+    const printCSS  = Array.from(doc.querySelectorAll('style')).map(s=>s.textContent).join('\n');
     const printBody = doc.body.innerHTML;
 
+    // 인쇄 콘텐츠 div 삽입
+    const container = document.createElement('div');
+    container.id = '_print_container';
+    container.innerHTML = printBody;
+    document.body.appendChild(container);
+
+    // @media print 스타일 주입 — 크롬 최적화
     const styleEl = document.createElement('style');
     styleEl.id = '_print_style';
     styleEl.textContent = `
       @media print {
+        @page { size: A4 portrait; margin: 14mm 16mm; }
         body > *:not(#_print_container) { display: none !important; }
         #_print_container {
           display: block !important;
           position: fixed; top: 0; left: 0;
           width: 100%; height: auto;
+          background: #fff;
         }
         ${printCSS}
       }
+      @media screen {
+        #_print_container { display: none; }
+      }
     `;
     document.head.appendChild(styleEl);
-    container.style.cssText = '';
-    container.innerHTML = printBody;
 
-    // ④ 렌더링 대기 후 window.print() 직접 호출
-    await new Promise(r => setTimeout(r, 300));
+    // 크롬 PDF 저장 안내 배너
+    const guide = document.createElement('div');
+    guide.id = '_print_guide';
+    guide.style.cssText = `
+      position:fixed; bottom:0; left:0; right:0; z-index:99999;
+      background:#1c1f27; color:#e8d8c0;
+      padding:14px 24px; font-size:13px;
+      display:flex; align-items:center; justify-content:space-between;
+      font-family:'Noto Sans KR',sans-serif;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    `;
+    guide.innerHTML = `
+      <div>
+        🖨️ &nbsp;인쇄 창이 열리면 &nbsp;<strong>대상(Destination)</strong> 항목에서
+        <strong style="color:#c8b49a;">"PDF로 저장"</strong> 선택 후 저장하세요.
+        &nbsp;|&nbsp; 배경 색상 포함 시: <strong>옵션 더보기 → 배경 그래픽 체크</strong>
+      </div>
+      <button id="_print_close_btn" style="
+        background:#c8b49a; color:#1a1408; border:none;
+        padding:8px 20px; border-radius:6px;
+        font-weight:700; cursor:pointer; margin-left:20px;
+        font-family:'Noto Sans KR',sans-serif; font-size:13px;
+        white-space:nowrap;
+      ">닫기</button>
+    `;
+    document.body.appendChild(guide);
+
+    document.getElementById('_print_close_btn').onclick = () => {
+      container.remove(); styleEl.remove(); guide.remove();
+    };
+
+    // 크롬 렌더링 완료 대기 후 print 호출
+    await new Promise(r => setTimeout(r, 400));
     window.print();
 
-    // ⑤ 인쇄 후 정리
+    // 인쇄 완료 후 자동 정리
     window.addEventListener('afterprint', () => {
-      container.remove();
-      styleEl.remove();
-    }, {once: true});
+      container.remove(); styleEl.remove(); guide.remove();
+    }, { once: true });
 
   } catch(e) {
-    alert('오류가 발생했습니다: ' + e.message);
+    alert('PDF 생성 오류: ' + e.message);
   } finally {
     genMsg.style.display = 'none';
   }
