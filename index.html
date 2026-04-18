@@ -1261,7 +1261,6 @@ function buildPrintHtml(section) {
       font-size: 10pt; line-height: 1.6; color: #111; background: #fff;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
       padding: 14mm 16mm 22mm 16mm;
-      counter-reset: page-counter;
     }
 
     /* ── 헤더 ── */
@@ -1323,14 +1322,14 @@ function buildPrintHtml(section) {
     .pr-divider { border: none; border-top: 0.5pt solid #ccc; margin: 14pt 0; }
 
     /* ── 근육 카드 ── */
-    .pr-muscle-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4pt; margin-bottom: 4pt; }
-    .pr-mcard { border: 0.5pt solid #e0e0e0; border-radius: 3pt; padding: 5pt 7pt; background: #fff; page-break-inside: avoid; }
-    .pr-mcard-badges { display: flex; align-items: center; gap: 4pt; margin-bottom: 3pt; }
-    .pr-bdg { font-size: 6pt; font-weight: 700; padding: 1.5pt 5pt; border-radius: 3pt; display: inline-block; }
+    .pr-muscle-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5pt; margin-bottom: 4pt; }
+    .pr-mcard { border: 0.5pt solid #e0e0e0; border-radius: 3pt; padding: 7pt 9pt; background: #fff; page-break-inside: avoid; }
+    .pr-mcard-badges { display: flex; align-items: center; gap: 5pt; margin-bottom: 4pt; }
+    .pr-bdg { font-size: 8pt; font-weight: 700; padding: 2pt 7pt; border-radius: 3pt; display: inline-block; }
     .pr-bdg-tight { background: #fde8e5; color: #c0392b; }
     .pr-bdg-weak  { background: #e3edf8; color: #1a56a8; }
-    .pr-bdg-star  { font-size: 7pt; color: #c0392b; font-weight: 700; }
-    .pr-mcard-name { font-size: 7.5pt; font-weight: 700; color: #111; margin-bottom: 2pt; }
+    .pr-bdg-star  { font-size: 9pt; color: #c0392b; font-weight: 700; }
+    .pr-mcard-name { font-size: 10pt; font-weight: 700; color: #111; margin-bottom: 3pt; }
     .pr-mcard-desc { font-size: 8.5pt; color: #444; line-height: 1.5; }
 
     /* ── 운동 처방 카드 ── */
@@ -1362,12 +1361,7 @@ function buildPrintHtml(section) {
 
     /* ── 푸터 & 페이지 번호 ── */
     .pr-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 5pt 16mm; border-top: 0.5pt solid #ccc; font-size: 8pt; color: #aaa; display: flex; justify-content: space-between; background: #fff; }
-    /* 페이지 번호 CSS counter */
-    @page { counter-increment: page-counter; }
-    .pr-page-num::after {
-      content: counter(page-counter) ' / ' counter(pages);
-    }
-    .pr-footer { counter-reset: none; }
+    /* 페이지 번호는 JS로 처리 */
     @page { margin: 0; }
 
     /* ── 페이지 나누기 ── */
@@ -1406,7 +1400,17 @@ async function exportPdf(section) {
     container.innerHTML = printBody;
     document.body.appendChild(container);
 
-    // 페이지 번호는 CSS @page counter로 자동 처리
+    // 페이지 번호 계산 (A4 기준 실제 페이지 수 추정)
+    await new Promise(r => setTimeout(r, 100));
+    const A4_HEIGHT_PX = 1122; // 96dpi 기준 A4 높이 px
+    const totalPages = Math.ceil(container.scrollHeight / A4_HEIGHT_PX);
+    const pageSpan = container.querySelector('#pr-page-num-span');
+    if (pageSpan) {
+      // 각 페이지 번호를 CSS counter로 표시하기 위해 전체 페이지 수만 표시
+      document.querySelectorAll('.pr-page-num').forEach((el, i) => {
+        el.textContent = `${i + 1} / ${totalPages}`;
+      });
+    }
 
     // @media print 스타일 주입 — 크롬 최적화
     const styleEl = document.createElement('style');
