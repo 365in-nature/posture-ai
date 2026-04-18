@@ -1145,12 +1145,7 @@ function buildPrintHtml(section) {
     let h = '';
     for (const rg of regs) {
       const d = result.muscles?.[rg.k]; if (!d) continue;
-      const allCards = [...(d.tight||[]), ...(d.weak||[])];
-      const cnt = allCards.length;
-      // 카드 수에 따라 컬럼 수 결정: 4장→2열, 5~6장→3열, 그 외→2열
-      const cols = (cnt >= 5) ? 3 : 2;
-      const gridStyle = `grid-template-columns: repeat(${cols}, 1fr);`;
-      h += `<div class="pr-region-lbl">${rg.l}</div><div class="pr-muscle-grid" style="${gridStyle}">`;
+      h += `<div class="pr-region-lbl">${rg.l}</div><div class="pr-muscle-grid">`;
       for (const m of (d.tight||[])) {
         h += `<div class="pr-mcard">
           <div class="pr-mcard-badges">
@@ -1281,7 +1276,7 @@ function buildPrintHtml(section) {
       font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', sans-serif;
       font-size: 10pt; line-height: 1.6; color: #111; background: #fff;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      padding: 29mm 16mm 37mm 16mm;
+      padding: 12mm 16mm 20mm 16mm;
     }
 
     /* ── 헤더 ── */
@@ -1382,13 +1377,29 @@ function buildPrintHtml(section) {
 
     /* ── 페이지 래퍼 ── */
     .pr-page-wrap {
-      min-height: 100vh;
       position: relative;
-      padding-bottom: 28pt;
+      padding-bottom: 32pt;
       page-break-after: always;
       break-after: page;
+      page-break-inside: auto;
     }
     .pr-page-wrap:last-child { page-break-after: avoid; break-after: avoid; }
+
+    /* 운동 카드는 페이지 경계에서 잘리지 않도록 */
+    .pr-excard, .pr-mcard, .pr-day-col, tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    /* 섹션 제목은 항상 카드와 함께 */
+    .pr-section-h2, .pr-region-lbl {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    /* 운동 그리드는 내부 잘림 허용 (카드 단위로 이동) */
+    .pr-ex-grid, .pr-muscle-grid {
+      page-break-inside: auto;
+      break-inside: auto;
+    }
 
     /* ── 푸터 & 페이지 번호 ── */
     .pr-footer-block {
