@@ -1054,8 +1054,13 @@ ${JSON.stringify({metrics:result.metrics, muscles:{neck:result.muscles?.neck, sh
         const base = result.posture_summary || '';
         const pelvicPart = updated.posture_summary || '';
         if (!pelvicPart || pelvicPart === base) return base;
-        // 골반 관련 새 설명 + 기존 요약 합치기
-        return pelvicPart + ' ' + base;
+        // 기존 요약에서 요추/골반 관련 문장만 교체하고 두부/경추/견갑/흉추 문장은 유지
+        // 문장 단위로 분리
+        const sentences = base.split(/(?<=[.。!?])\s+/);
+        const pelvicKeywords = /요추|골반|허리|장요근|복횡근|전방 경사|후방 경사|과전만|평평한 등|대둔근|햄스트링|복직근|중둔근|다열근|요추기립근|대퇴직근/;
+        const nonPelvicSentences = sentences.filter(s => !pelvicKeywords.test(s));
+        // 두부/경추/견갑/흉추 문장은 유지, 골반 새 설명 추가
+        return [...nonPelvicSentences, pelvicPart].filter(Boolean).join(' ');
       })(),
       muscles: {
         neck:     updated.muscles?.neck     || result.muscles?.neck,           // 유지
@@ -1106,14 +1111,12 @@ function buildPrintHtml(section) {
   function hdr() {
     const pName = patientName ? `<div class="pr-patient">${patientName} 님</div>` : '';
     return `
+    <img src="data:image/png;base64,${CLINIC_LOGO}" alt="한의원 로고" class="pr-clinic-logo-fixed">
     <div class="pr-hdr">
       <div class="pr-hdr-left">
         <div class="pr-logo"><span class="pr-logo-blue">Posture</span>AI</div>
         <div class="pr-hdr-sub">${titles[section]}</div>
         ${pName}
-      </div>
-      <div class="pr-hdr-right">
-        <img src="data:image/png;base64,${CLINIC_LOGO}" alt="한의원 로고" class="pr-clinic-logo">
       </div>
     </div>`;
   }
@@ -1147,7 +1150,6 @@ function buildPrintHtml(section) {
             <span class="pr-bdg pr-bdg-tight">▲ 과긴장</span>${m.star?'<span class="pr-bdg-star">★</span>':''}
           </div>
           <div class="pr-mcard-name">${m.name||''}</div>
-          <div class="pr-mcard-desc">${m.desc||''}</div>
         </div>`;
       }
       for (const m of (d.weak||[])) {
@@ -1156,7 +1158,6 @@ function buildPrintHtml(section) {
             <span class="pr-bdg pr-bdg-weak">▼ 약화</span>${m.star?'<span class="pr-bdg-star">★</span>':''}
           </div>
           <div class="pr-mcard-name">${m.name||''}</div>
-          <div class="pr-mcard-desc">${m.desc||''}</div>
         </div>`;
       }
       h += '</div>';
@@ -1225,13 +1226,16 @@ function buildPrintHtml(section) {
     return h;
   }
 
-  /* ── 푸터 ── */
+  /* ── 푸터 (페이지 번호 포함) ── */
   function pFooter() {
-    return `<div class="pr-footer">PostureAI — 3D 체형 스캔 기반 자세 분석 시스템</div>`;
+    return `<div class="pr-footer">
+      <span>PostureAI — 3D 체형 스캔 기반 자세 분석 시스템</span>
+      <span class="pr-page-num"></span>
+    </div>`;
   }
 
   /* ── 본문 조립 ── */
-  const div = '<div class="pr-divider"></div>';
+  const pageBreak = '<div class="pr-page-break"></div>';
   let body = hdr();
   if (section === 'all' || section === 'muscles') {
     body += pMetrics() + pSummary() + pMuscles();
@@ -1240,9 +1244,9 @@ function buildPrintHtml(section) {
   if (section === 'strengthen') body += pExercises(result.strengthening, '');
   if (section === 'program')    body += pProgram();
   if (section === 'all') {
-    body += div + pExercises(result.stretches, '스트레칭 처방');
-    body += div + pExercises(result.strengthening, '강화 운동 처방');
-    body += div + pProgram();
+    body += pageBreak + pExercises(result.stretches, '스트레칭 처방');
+    body += pageBreak + pExercises(result.strengthening, '강화 운동 처방');
+    body += pageBreak + pProgram();
   }
   body += pFooter();
 
@@ -1257,12 +1261,14 @@ function buildPrintHtml(section) {
     }
 
     /* ── 헤더 ── */
+    /* 로고 모든 페이지 우측 상단 고정 */
+    .pr-clinic-logo-fixed { position: fixed; top: 8pt; right: 0; height: 38pt; width: auto; z-index: 100; }
     .pr-hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2pt solid #111; padding-bottom: 8pt; margin-bottom: 14pt; }
     .pr-logo { font-size: 20pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
     .pr-logo-blue { color: #1a56a8; }
     .pr-hdr-sub { font-size: 9pt; color: #666; margin-top: 3pt; }
     .pr-patient { font-size: 13pt; font-weight: 700; color: #111; margin-top: 5pt; }
-    .pr-clinic-logo { height: 44pt; width: auto; display: block; }
+    .pr-clinic-logo { display: none; }
 
     /* ── 측정 수치 ── */
     .pr-metrics-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6pt; margin-bottom: 12pt; }
@@ -1326,8 +1332,14 @@ function buildPrintHtml(section) {
     .pr-phase-badge.ph2 { background: #e0ecf5; color: #1a56a8; }
     .pr-phase-badge.ph3 { background: #e0f5e8; color: #1a7a3a; }
 
-    /* ── 푸터 ── */
-    .pr-footer { margin-top: 12pt; padding-top: 6pt; border-top: 0.5pt solid #ccc; font-size: 8pt; color: #aaa; }
+    /* ── 푸터 & 페이지 번호 ── */
+    .pr-footer { position: fixed; bottom: 0; left: 0; right: 0; margin-top: 12pt; padding: 5pt 16mm; border-top: 0.5pt solid #ccc; font-size: 8pt; color: #aaa; display: flex; justify-content: space-between; background: #fff; }
+    .pr-page-num::after { content: counter(page) ' / ' counter(pages); }
+    @page { counter-increment: page; }
+    body { counter-reset: page; }
+
+    /* ── 페이지 나누기 ── */
+    .pr-page-break { page-break-before: always; break-before: page; margin-top: 0; }
   `;
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${css}</style></head><body>${body}</body></html>`;
