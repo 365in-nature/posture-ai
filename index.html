@@ -1193,8 +1193,6 @@ function buildPrintHtml(section) {
     <img src="data:image/png;base64,${CLINIC_LOGO}" alt="한의원 로고" class="pr-watermark">
     <div class="pr-hdr">
       <div class="pr-hdr-left">
-        <div class="pr-logo"><span class="pr-logo-blue">Posture</span>AI</div>
-        <div class="pr-hdr-sub">${titles[section]}</div>
         ${pName}
       </div>
     </div>`;
@@ -1309,7 +1307,6 @@ function buildPrintHtml(section) {
   function pFooter() {
     return `<div class="pr-footer">
       <span>PostureAI — 3D 체형 스캔 기반 자세 분석 시스템</span>
-      <span class="pr-page-num" id="pr-page-num-span"></span>
     </div>`;
   }
 
