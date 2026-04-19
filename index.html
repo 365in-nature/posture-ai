@@ -1404,6 +1404,11 @@ function onCanvasMouseMove(e){
       y:Math.max(0,Math.min(1,pos.y/canvas.height))
     };
     drawCVOverlay(mpLandmarks,document.getElementById('mp-img'));
+    // 드래그 중 테이블 실시간 업데이트 (100ms 디바운스)
+    clearTimeout(onCanvasMouseMove._t);
+    onCanvasMouseMove._t=setTimeout(()=>{
+      renderCVTable(mpLandmarks,document.getElementById('mp-img'));
+    },100);
   }else{
     canvas.style.cursor=findNearestLandmark(pos,canvas)?'grab':'crosshair';
   }
@@ -1552,15 +1557,61 @@ function onCanvasMouseDown(e){
     return;
   }
 
-  // 드래그 모드 (자동 감지 완료 후)
+  // 드래그 모드 — 포인트 잡는 순간 clinical 제거
   dragTarget=findNearestLandmark(pos,canvas);
   if(dragTarget){
     canvas.style.cursor='grabbing';
     document.getElementById('mp-edit-hint').style.display='';
+    // clinical 값 즉시 제거 → 드래그된 좌표가 바로 프롬프트에 반영
+    if(mpLandmarks.clinical) delete mpLandmarks.clinical;
   }
 }
 
 // Claude에게 넘길 실측 좌표 텍스트 생성
+// 조정된 랜드마크값을 landmarks_side JSON으로 직접 구성
+// Claude가 이 값을 덮어쓰지 못하도록 템플릿이 아닌 실제값으로 채움
+function buildLandmarkSideJSON(){
+  if(!mpLandmarks){
+    // 랜드마크 없을 때 → Claude가 이미지 보고 판단하도록 템플릿 반환
+    return`[{"name":"귓불","status":"bad","offset":"+0.0cm","note":"설명"},{"name":"견봉(어깨)","status":"ok","offset":"기준점","note":"설명"},{"name":"대전자(고관절)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"슬개골(무릎)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"외과(복숭아뼈)","status":"ok","offset":"기준점","note":"설명"}]`;
+  }
+
+  const lms=mpLandmarks;
+  const imgEl=document.getElementById('mp-img');
+  const dw=imgEl.offsetWidth||400;
+  const pxPerCm=getPxPerCm(lms,imgEl);
+  const refX=lms.shoulder.x;
+  const hasClinical=!!lms.clinical;
+
+  const order=[
+    {k:'ear',   name:'귓불'},
+    {k:'shoulder',name:'견봉(어깨)'},
+    {k:'hip',   name:'대전자(고관절)'},
+    {k:'knee',  name:'슬개골(무릎)'},
+    {k:'ankle', name:'외과(복숭아뼈)'}
+  ];
+
+  const items=order.map(({k,name})=>{
+    let diffCm;
+    if(hasClinical&&k!=='shoulder'){
+      diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
+    }else{
+      diffCm=parseFloat(((lms[k].x-refX)*dw/pxPerCm).toFixed(1));
+    }
+    const sign=diffCm>0?'+':'';
+    const offset=k==='shoulder'?'기준점':k==='ankle'?'기준점':sign+diffCm+'cm';
+    let status='ok';
+    if(k==='ear'){status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';}
+    else if(k!=='shoulder'&&k!=='ankle'){status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';}
+    const note=k==='shoulder'?'수직 기준점':k==='ankle'?'수직 기준점':
+      (Math.abs(diffCm)>=2?(diffCm>0?'전방 이동 — FHP/라운드숄더':'후방 이동'):
+       Math.abs(diffCm)>=1?(diffCm>0?'경미한 전방':'경미한 후방'):'정상 정렬');
+    return`{"name":"${name}","status":"${status}","offset":"${offset}","note":"${note}"}`;
+  });
+
+  return`[${items.join(',')}]`;
+}
+
 function getMPDataForPrompt(){
   if(!mpLandmarks)return'';
   const lms=mpLandmarks;
@@ -1618,6 +1669,10 @@ function buildContent(){
   const mpData=getMPDataForPrompt();
   const bodyInfo=getBodyInfo();
   const bodyStr=bodyInfo?`\n=== 환자 신체 계측값 ===\n키: ${bodyInfo.height_cm||'미입력'}cm / 체중: ${bodyInfo.weight_kg||'미입력'}kg / BMI: ${bodyInfo.bmi||'—'} (${bodyInfo.bmi_category||'—'})\n`:'';
+
+  // 조정된 랜드마크 값을 직접 JSON으로 구성
+  const lmSideJSON=buildLandmarkSideJSON();
+
   c.push({type:"text",text:`당신은 정형외과 물리치료사이자 체형 분석 전문가입니다. 입력 채널: ${ci.join(', ')}
 ${bodyStr}${mpData}
 === 채널1: 측면 일반 사진 ${hs?'(입력됨)':'(없음 — 해당 항목 추정값 사용)'} ===
@@ -1627,6 +1682,7 @@ ${bodyStr}${mpData}
 - 흉추 과후만 → 흉추신전근 약화
 - 허리 전만 증가 + 복부 돌출 → 장요근·요추기립근 단축
 - 허리 전만 감소 → 햄스트링·복직근 단축
+${mpData?'⚠️ landmarks_side의 offset은 위에서 제공한 실측값을 그대로 사용하고 절대 변경하지 마세요.':''}
 
 === 채널2: 정면 모아레 사진 ${hf?'(입력됨)':'(없음 — 해당 항목 null)'} ===
 모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다. 열화상이 아닙니다.
@@ -1666,7 +1722,7 @@ ${bodyStr}${mpData}
 week_schedule은 7일치 배열로 "on"(운동일), "rest"(완전휴식), "light"(가벼운 활동) 중 하나씩 지정.
 
 JSON만 출력:
-{"scores":{"total":"점수/100","sagittal":"점수/100","balance":"점수/100"},"findings":[{"level":"bad|warn|good","text":"<strong>소견명</strong> — 설명","source":"side|front|rear"}],"landmarks_side":[{"name":"귓불","status":"bad","offset":"+0.0cm","note":"설명"},{"name":"견봉(어깨)","status":"ok","offset":"기준점","note":"설명"},{"name":"대전자(고관절)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"슬개골(무릎)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"외과(복숭아뼈)","status":"ok","offset":"기준점","note":"설명"}],"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":"설명"}],"measurements":[{"name":"어깨높이차","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":"설명"},{"name":"견갑간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"척주높이차","value":"0.0cm","normal":"±1.0cm","status":"ok","source":"front","meaning":"설명"},{"name":"허리간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"배꼽간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":"설명"},{"name":"배꼽아래간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":"설명"}],"moire_front":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"moire_rear":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육명","level":85,"desc":"설명","evidence_channels":["side"],"cross_validated":true}],"weak_muscles":[{"name":"근육명","level":35,"desc":"설명","evidence_channels":["front"],"cross_validated":false}],"contraindications":[{"exercise":"금기운동","reason":"이유","pattern":"패턴"}],"exercise_priority":[{"phase":1,"label":"1단계 — 이완","items":[]},{"phase":2,"label":"2단계 — 활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":[]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`});
+{"scores":{"total":"점수/100","sagittal":"점수/100","balance":"점수/100"},"findings":[{"level":"bad|warn|good","text":"<strong>소견명</strong> — 설명","source":"side|front|rear"}],"landmarks_side":${lmSideJSON},"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":"설명"}],"measurements":[{"name":"어깨높이차","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":"설명"},{"name":"견갑간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"척주높이차","value":"0.0cm","normal":"±1.0cm","status":"ok","source":"front","meaning":"설명"},{"name":"허리간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"배꼽간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":"설명"},{"name":"배꼽아래간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":"설명"}],"moire_front":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"moire_rear":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육명","level":85,"desc":"설명","evidence_channels":["side"],"cross_validated":true}],"weak_muscles":[{"name":"근육명","level":35,"desc":"설명","evidence_channels":["front"],"cross_validated":false}],"contraindications":[{"exercise":"금기운동","reason":"이유","pattern":"패턴"}],"exercise_priority":[{"phase":1,"label":"1단계 — 이완","items":[]},{"phase":2,"label":"2단계 — 활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":[]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`});
   return c;
 }
 
