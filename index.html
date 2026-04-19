@@ -464,7 +464,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
           </div>
         </div>
         <div style="position:relative;display:inline-block;width:100%" id="mp-wrap">
-          <img id="mp-img" style="width:100%;max-height:480px;object-fit:contain;display:block;border-radius:8px" alt="">
+          <img id="mp-img" style="width:100%;max-height:960px;object-fit:contain;display:block;border-radius:8px" alt="">
           <canvas id="mp-canvas"
             style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;cursor:crosshair"
             onmousedown="onCanvasMouseDown(event)"
@@ -1276,19 +1276,19 @@ function drawCVOverlay(lms, imgEl){
     const p=lms[k];
     const px=p.x*dw, py=p.y*dh;
     const col=colors[k];
-    // 외곽 흰 원
-    ctx.beginPath();ctx.arc(px,py,11,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fill();
-    // 컬러 원
+    // 외곽 흰 원 (25% 축소: 11→8)
     ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fill();
+    // 컬러 원 (25% 축소: 8→6)
+    ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);
     ctx.fillStyle=col;ctx.fill();
     // 레이블
-    ctx.font='bold 13px -apple-system,sans-serif';
-    const lx=px>dw*0.65?px-70:px+14;
-    ctx.strokeStyle=col;ctx.lineWidth=4;
-    ctx.strokeText(labels[k],lx,py+5);
+    ctx.font='bold 11px -apple-system,sans-serif';
+    const lx=px>dw*0.65?px-65:px+11;
+    ctx.strokeStyle=col;ctx.lineWidth=3;
+    ctx.strokeText(labels[k],lx,py+4);
     ctx.fillStyle='#fff';ctx.lineWidth=0;
-    ctx.fillText(labels[k],lx,py+5);
+    ctx.fillText(labels[k],lx,py+4);
   });
 }
 
@@ -1365,7 +1365,7 @@ function resetMPLandmarks(){
 
 // ── 수동 드래그 조절 ─────────────────────────────────────────
 let dragTarget=null;
-const DRAG_RADIUS=18;
+const DRAG_RADIUS=14;
 const LM_ORDER=['ear','shoulder','hip','knee','ankle'];
 
 function getCanvasPos(e,canvas){
@@ -1443,7 +1443,7 @@ function showDragHint(){
       const p=mpLandmarks[k];if(!p)return;
       const px=p.x*canvas.width,py=p.y*canvas.height;
       const alpha=Math.max(0,0.7-t*0.08);
-      const r=13+Math.sin(t*1.8)*4;
+      const r=9+Math.sin(t*1.8)*3;
       ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);
       ctx.strokeStyle=`rgba(255,255,255,${alpha})`;
       ctx.lineWidth=2.5;ctx.stroke();
@@ -1489,12 +1489,12 @@ function drawManualGuide(){
   manualPoints.forEach((p,i)=>{
     const px=p.x*canvas.width;
     const py=p.y*canvas.height;
-    // 임시 번호 표시
-    ctx.beginPath();ctx.arc(px,py,11,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
+    // 임시 번호 표시 (25% 축소: 11→8, 8→6)
     ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);
     ctx.fillStyle='rgba(100,100,100,0.8)';ctx.fill();
-    ctx.font='bold 11px -apple-system,sans-serif';
+    ctx.font='bold 9px -apple-system,sans-serif';
     ctx.fillStyle='#fff';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
