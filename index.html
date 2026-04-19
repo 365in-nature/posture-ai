@@ -513,7 +513,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
           <button class="btn btn-sm" onclick="showSub('patient-detail')">← 환자 정보</button>
-          <button class="btn btn-sm" onclick="printReport()" style="background:var(--info-l);color:var(--info-d);border-color:var(--info)">인쇄</button>
           <button class="btn btn-sm btn-e" onclick="openPDF()">PDF 저장</button>
         </div>
       </div>
@@ -1796,7 +1795,7 @@ async function saveSess(r){
 async function viewSess(sid){
   const data=await sbGet('sessions',`?id=eq.${sid}`);
   const s=Array.isArray(data)?data[0]:data;if(!s)return;
-  curSession={scores:s.scores,findings:s.findings,landmarks_side:s.landmarks,measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,_sid:s.id};
+  curSession={scores:s.scores,findings:s.findings,landmarks_side:s.landmarks,measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,height_cm:s.height_cm,weight_kg:s.weight_kg,_sid:s.id};
   renderResult(curSession);showSub('result');
 }
 
@@ -1812,14 +1811,20 @@ function renderResult(r){
   document.getElementById('r-sag').textContent=r.scores?.sagittal||'—';
   document.getElementById('r-bal').textContent=r.scores?.balance||'—';
   const icons={bad:'!',warn:'~',good:'✓'};
-  document.getElementById('findings').innerHTML=(r.findings||[]).map(f=>{const src=f.source&&chBg[f.source]?`<span style="font-size:8px;padding:1px 4px;border-radius:3px;background:${chBg[f.source]};color:${chTxt[f.source]};margin-left:4px;font-family:var(--mono)">${chLbl[f.source]}</span>`:'';return`<div class="finding"><div class="fi-i fi-${f.level[0]}">${icons[f.level]}</div><div class="finding-txt">${f.text}${src}</div></div>`}).join('');
+  document.getElementById('findings').innerHTML=(r.findings||[]).filter(f=>f&&f.level&&f.text).map(f=>{const lvl=f.level||'good';const src=f.source&&chBg[f.source]?`<span style="font-size:8px;padding:1px 4px;border-radius:3px;background:${chBg[f.source]};color:${chTxt[f.source]};margin-left:4px;font-family:var(--mono)">${chLbl[f.source]}</span>`:'';return`<div class="finding"><div class="fi-i fi-${lvl[0]}">${icons[lvl]||'•'}</div><div class="finding-txt">${f.text}${src}</div></div>`}).join('');
   function renderLM(arr,id){
     const el=document.getElementById(id);
     if(!arr||!arr.length){el.innerHTML='<div style="font-size:14px;color:var(--txt3);padding:8px 0">해당 채널 미입력</div>';return}
-    el.innerHTML=arr.map(l=>{const dir=l.direction&&l.direction!=='none'?` (${l.direction==='left'?'좌':'우'})` :'';const extra=l.asymmetry_pct&&l.asymmetry_pct!=='0%'?` 비대칭 ${l.asymmetry_pct}`:'';const val=(l.offset||l.asymmetry_pct||'—')+dir+extra;return`<div class="lm-row"><div class="lm-dot" style="background:${dotC[l.status||'ok']}"></div><span class="lm-nm">${l.name}</span><span class="lm-val" style="color:${dotC[l.status||'ok']}">${val}</span><span class="lm-st ${stCls[l.status||'ok']}">${stLbl[l.status||'ok']}</span></div>`}).join('')
+    el.innerHTML=arr.map(l=>{
+      const st=l.status&&stCls[l.status]?l.status:'ok';
+      const dir=l.direction&&l.direction!=='none'?` (${l.direction==='left'?'좌':'우'})`:'';
+      const extra=l.asymmetry_pct&&l.asymmetry_pct!=='0%'?` 비대칭 ${l.asymmetry_pct}`:'';
+      const val=(l.offset||l.asymmetry_pct||'—')+dir+extra;
+      return`<div class="lm-row"><div class="lm-dot" style="background:${dotC[st]}"></div><span class="lm-nm">${l.name||'—'}</span><span class="lm-val" style="color:${dotC[st]}">${val}</span><span class="lm-st ${stCls[st]}">${stLbl[st]}</span></div>`;
+    }).join('')
   }
   renderLM(r.landmarks_side,'lm-side');renderLM(r.landmarks_front,'lm-front');
-  document.getElementById('meas-grid').innerHTML=(r.measurements||[]).map(m=>{const src=m.source?`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'};margin-left:3px;font-family:var(--mono)">${chLbl[m.source]||m.source}</span>`:'';return`<div class="meas-c"><div class="meas-nm">${m.name}${src}</div><div style="display:flex;align-items:baseline;gap:5px"><span class="meas-v">${m.value}</span><span class="lm-st ${stCls[m.status]}" style="font-size:8px">${stLbl[m.status]}</span></div><div class="meas-r">정상 ${m.normal}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${m.meaning}</div></div>`}).join('');
+  document.getElementById('meas-grid').innerHTML=(r.measurements||[]).filter(m=>m&&m.name).map(m=>{const st=m.status&&stCls[m.status]?m.status:'ok';const src=m.source?`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'};margin-left:3px;font-family:var(--mono)">${chLbl[m.source]||m.source}</span>`:'';return`<div class="meas-c"><div class="meas-nm">${m.name}${src}</div><div style="display:flex;align-items:baseline;gap:5px"><span class="meas-v">${m.value||'—'}</span><span class="lm-st ${stCls[st]}" style="font-size:8px">${stLbl[st]}</span></div><div class="meas-r">정상 ${m.normal||'—'}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${m.meaning||''}</div></div>`}).join('');
   const patternLabel={'dense':'등고선 밀집','shifted':'등고선 편위','gap':'등고선 끊김','bulge':'등고선 돌출','symmetric':'좌우 대칭'};
   const patternColor={'dense':'var(--err)','shifted':'var(--warn)','gap':'var(--info)','bulge':'var(--warn)','symmetric':'var(--acc)'};
   const implLabel={'tight':'단축·과긴장','weak':'위축·약화','ok':'정상'};
@@ -1854,8 +1859,8 @@ function renderResult(r){
   function renderM(arr,id,type){document.getElementById(id).innerHTML=(arr||[]).map(m=>{const cv=m.cross_validated===true?'<span class="cv-b cv-on">3채널</span>':m.cross_validated==='partial'?'<span class="cv-b cv-p">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px;font-family:var(--mono)">${chLbl[c]||c}</span>`).join('');return`<div class="mc"><div class="mc-hd"><span class="mc-nm">${m.name}</span><span class="mtag ${type==='tight'?'t-tight':'t-weak'}">${type==='tight'?'과긴장':'약화'}</span></div><div class="bar-bg"><div class="bar ${type==='tight'?'b-tight':'b-weak'}" style="width:0%" data-w="${m.level}%"></div></div><div class="mc-desc">${m.desc}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}
   renderM(r.tight_muscles,'tight-m','tight');renderM(r.weak_muscles,'weak-m','weak');
   setTimeout(()=>document.querySelectorAll('.bar[data-w]').forEach(b=>{b.style.width=b.dataset.w}),150);
-  if(r.contraindications?.length)document.getElementById('contra-box').innerHTML=`<div class="contra-box"><div class="contra-t">금기 운동</div>${r.contraindications.map(c=>`<div class="contra-item"><span style="color:var(--warn)">✕</span><span><strong>${c.exercise}</strong> — ${c.reason}</span></div>`).join('')}</div>`;else document.getElementById('contra-box').innerHTML='';
-  if(r.exercise_priority?.length)document.getElementById('phase-box').innerHTML=r.exercise_priority.map(p=>`<div class="phase-box ${p.phase===1?'phase1':'phase2'}"><div class="phase-t ${p.phase===1?'p1':'p2'}">${p.label}</div>${p.items.map(i=>`<div style="font-size:11px;color:${p.phase===1?'var(--err-d)':'var(--acc-d)'};padding:1px 0">· ${i}</div>`).join('')}</div>`).join('');
+  if(r.exercise_priority?.length)document.getElementById('phase-box').innerHTML=r.exercise_priority.map(p=>`<div class="phase-box ${p.phase===1?'phase1':'phase2'}"><div class="phase-t ${p.phase===1?'p1':'p2'}">${p.label}</div>${(p.items||[]).map(i=>`<div style="font-size:14px;color:${p.phase===1?'var(--err-d)':'var(--acc-d)'};padding:2px 0">· ${i}</div>`).join('')}</div>`).join('');
+  document.getElementById('contra-box').innerHTML='';
   const days=['월','화','수','목','금','토','일'];
   const dayStatus={'on':'운동','rest':'휴식','light':'가벼운 활동'};
   const dayStatusColor={'on':'var(--acc-d)','rest':'var(--txt3)','light':'var(--warn-d)'};
@@ -1959,7 +1964,11 @@ function buildPDFPages(){
   const icons={bad:'!',warn:'~',good:'✓'};
   const days=['월','화','수','목','금','토','일'];
 
-  const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}<br>${r.height_cm?r.height_cm+'cm':'—'} / ${r.weight_kg?r.weight_kg+'kg':'—'}${r.height_cm&&r.weight_kg?' · BMI '+(r.weight_kg/((r.height_cm/100)**2)).toFixed(1):''}</div></div></div>`;
+  const hCm=r.height_cm||curPatient?.height_cm||null;
+  const wKg=r.weight_kg||curPatient?.weight_kg||null;
+  const bmiStr=hCm&&wKg?' · BMI '+(wKg/((hCm/100)**2)).toFixed(1):'';
+  const bodyLine=hCm||wKg?`<br>${hCm?hCm+'cm':'—'} / ${wKg?wKg+'kg':'—'}${bmiStr}`:'';
+  const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}${bodyLine}</div></div></div>`;
   const miniHdr=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;font-weight:700">${esc(p.name)} · ${esc(p.chart_no)}</span><span style="font-size:9px;color:var(--txt3)">${r.session_date||now}</span></div>`;
 
   // 페이지 1
@@ -1991,7 +2000,6 @@ function buildPDFPages(){
   // 페이지 3
   let pg3=`<div class="pdf-page">
   ${miniHdr}
-  ${r.contraindications?.length?`<div class="pdf-contra"><div style="font-size:9px;font-weight:700;color:var(--warn-d);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">금기 운동</div>${r.contraindications.map(c=>`<div style="font-size:10px;color:var(--warn-d);padding:2px 0;display:flex;gap:5px"><span style="font-weight:700">✕</span><span><strong>${esc(c.exercise)}</strong> — ${esc(c.reason)}</span></div>`).join('')}</div>`:''}
   ${r.exercise_priority?.length?`<div class="psec"><div class="psec-t">세션 처방 순서</div><div class="pdf-phase-grid">${r.exercise_priority.map(ph=>`<div class="pdf-phase-c ${ph.phase===1?'phase1':'phase2'}"><div class="phase-t ${ph.phase===1?'p1':'p2'}">${esc(ph.label)}</div>${(ph.items||[]).map(i=>`<div style="font-size:10px;color:${ph.phase===1?'var(--err-d)':'var(--acc-d)'};padding:1px 0">· ${esc(i)}</div>`).join('')}</div>`).join('')}</div></div>`:''}
   <div class="psec"><div class="psec-t">주간 운동 계획</div><div class="pdf-week">${(r.week_schedule||[]).map((d,i)=>`<div class="pdf-day-c"><div class="pdf-day-nm">${days[i]}</div><div class="pdf-day-d dot-${d}"></div></div>`).join('')}</div></div>
   <div class="psec"><div class="psec-t">처방 운동 목록</div><table class="pdf-ex-tbl"><thead><tr><th>#</th><th>운동명</th><th>단계</th><th>분류</th><th>세트</th><th>동작 순서</th></tr></thead><tbody>${(r.exercises||[]).map((e,i)=>`<tr><td style="color:var(--txt3);font-weight:700;font-family:monospace">${String(i+1).padStart(2,'0')}</td><td><div style="font-weight:700;color:var(--txt);font-size:10px">${esc(e.name)}</div>${e.target_muscles?.length?`<div style="font-size:8px;color:var(--txt3);margin-top:1px">타겟: ${e.target_muscles.join(', ')}</div>`:''}<div style="font-size:9px;color:var(--acc-d);margin-top:1px">${esc(e.purpose)}</div></td><td><span style="font-size:8px;padding:2px 5px;border-radius:8px;font-weight:700;background:${e.phase===1?'var(--err-l)':'var(--acc-l)'};color:${e.phase===1?'var(--err-d)':'var(--acc-d)'}">${e.phase||1}단계</span></td><td style="font-size:9px;color:var(--txt2)">${esc(e.category)}</td><td style="font-family:monospace;font-size:9px;white-space:nowrap">${esc(e.sets)}</td><td><ol style="padding-left:12px;font-size:9px;color:var(--txt3)">${(e.steps||[]).map(s=>`<li style="margin-bottom:1px">${esc(s)}</li>`).join('')}</ol></td></tr>`).join('')}</tbody></table></div>
