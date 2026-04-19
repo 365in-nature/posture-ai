@@ -1502,7 +1502,7 @@ async function exportPdf(section) {
 
     styleEl.textContent = `
       @media print {
-        @page { size: A4 portrait; margin: 14mm 16mm 22mm 16mm; }
+        @page { size: A4 portrait; margin: 8mm 16mm 10mm 16mm; }
 
         /* 안내 배너 포함 현재 페이지 모든 요소 숨김 */
         body > * { display: none !important; }
@@ -1513,6 +1513,7 @@ async function exportPdf(section) {
           position: static !important;
           width: 100%;
           background: #fff;
+          padding-top: 25mm !important;
         }
 
         /* 로고 워터마크 — 각 페이지 중앙에 반복 */
