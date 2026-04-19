@@ -385,16 +385,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
             <input type="file" id="fi-side" accept="image/*" style="display:none" onchange="handleF('side',this)">
           </div>
           <div>
-            <div style="text-align:center;margin-bottom:.4rem;font-size:10px;font-weight:600"><span class="ch-dot-sm" style="background:var(--warn)"></span>정면 컨투어</div>
+            <div style="text-align:center;margin-bottom:.4rem;font-size:10px;font-weight:600"><span class="ch-dot-sm" style="background:var(--warn)"></span>정면 모아레</div>
             <div class="uslot" id="slot-front" onclick="triggerUp('front')" ondragover="onDg(event,'front')" ondragleave="offDg('front')" ondrop="onDrop(event,'front')">
-              <span class="badge bc">컨투어 맵</span><div class="slot-t">정면 열화상</div><div class="slot-s">좌우 근막 긴장<br>두부기울기·흉곽</div>
+              <span class="badge bc">모아레 사진</span><div class="slot-t">정면 전신</div><div class="slot-s">등고선 좌우 대칭<br>어깨·골반 높이차</div>
             </div>
             <input type="file" id="fi-front" accept="image/*" style="display:none" onchange="handleF('front',this)">
           </div>
           <div>
-            <div style="text-align:center;margin-bottom:.4rem;font-size:10px;font-weight:600"><span class="ch-dot-sm" style="background:var(--err)"></span>후면 컨투어</div>
+            <div style="text-align:center;margin-bottom:.4rem;font-size:10px;font-weight:600"><span class="ch-dot-sm" style="background:var(--err)"></span>후면 모아레</div>
             <div class="uslot" id="slot-rear" onclick="triggerUp('rear')" ondragover="onDg(event,'rear')" ondragleave="offDg('rear')" ondrop="onDrop(event,'rear')">
-              <span class="badge bc">컨투어 맵</span><div class="slot-t">후면 열화상</div><div class="slot-s">척추측만·견갑골<br>골반 PSIS</div>
+              <span class="badge bc">모아레 사진</span><div class="slot-t">후면 전신</div><div class="slot-s">척추측만·견갑골<br>골반 PSIS</div>
             </div>
             <input type="file" id="fi-rear" accept="image/*" style="display:none" onchange="handleF('rear',this)">
           </div>
@@ -404,7 +404,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
         </div>
         <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
       </div>
-      <div class="alert-i">3채널 모두 입력 시 최고 정확도. 측면 1장만으로도 분석 가능합니다.</div>
+      <div class="alert-i">3채널 모두 입력 시 최고 정확도. 측면 사진 1장만으로도 분석 가능합니다. 정면·후면은 <strong>모아레 사진</strong>을 사용하세요.</div>
       <div class="actions" style="justify-content:flex-end">
         <button class="btn btn-sm" onclick="showSub('patient-detail')">취소</button>
         <button class="btn btn-p btn-sm" id="ana-btn" onclick="startAna()" disabled>분석 시작 →</button>
@@ -436,7 +436,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
       <div class="vtabs">
         <div class="vtab on" onclick="sw('ov')">종합</div>
         <div class="vtab" onclick="sw('lm')">랜드마크</div>
-        <div class="vtab" onclick="sw('ct')">컨투어</div>
+        <div class="vtab" onclick="sw('ct')">모아레</div>
         <div class="vtab" onclick="sw('ms')">근육</div>
         <div class="vtab" onclick="sw('ex')">운동</div>
       </div>
@@ -460,13 +460,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
       </div>
       <div id="tab-ct" class="hidden">
         <div class="card">
-          <div style="display:flex;gap:10px;margin-bottom:.75rem;flex-wrap:wrap;font-size:10px;color:var(--txt2)">
-            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#E24B4A;margin-right:3px;vertical-align:middle"></span>붉은/오렌지 — 과긴장</span>
-            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#1D9E75;margin-right:3px;vertical-align:middle"></span>녹색 — 돌출·긴장</span>
-            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#185FA5;margin-right:3px;vertical-align:middle"></span>청색/보라 — 함몰·위축</span>
+          <div style="background:var(--bg2);border-radius:10px;padding:14px 16px;margin-bottom:1rem">
+            <div class="sec-t" style="margin-bottom:8px">모아레 등고선 해석 기준</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--txt2);line-height:1.6">
+              <div><span style="font-weight:700;color:var(--txt)">좌우 대칭</span> — 등고선 간격·형태가 좌우 동일 → 정상</div>
+              <div><span style="font-weight:700;color:var(--err)">등고선 밀집 (간격 좁음)</span> — 경사 급함 → 해당 방향 근육 단축·긴장</div>
+              <div><span style="font-weight:700;color:var(--warn)">등고선 비대칭·편위</span> — 한쪽으로 쏠림 → 구조적 비대칭</div>
+              <div><span style="font-weight:700;color:var(--info)">등고선 끊김·소실</span> — 해당 부위 함몰 → 근육 위축·약화</div>
+            </div>
           </div>
-          <div class="sec-t">정면 컨투어</div><div id="cnt-f"></div>
-          <div class="sec-t" style="margin-top:.75rem">후면 컨투어</div><div id="cnt-r"></div>
+          <div class="sec-t">정면 모아레 — 좌우 대칭 분석</div><div id="cnt-f"></div>
+          <div class="sec-t" style="margin-top:1.25rem">후면 모아레 — 척추·견갑·골반 분석</div><div id="cnt-r"></div>
         </div>
       </div>
       <div id="tab-ms" class="hidden">
@@ -676,7 +680,7 @@ function startSession(){
 }
 function resetSlot(ch){
   const s=document.getElementById('slot-'+ch);s.onclick=()=>triggerUp(ch);
-  const cfg={side:['badge bp','일반 사진','측면 전신','귓불·어깨·고관절<br>무릎·복숭아뼈'],front:['badge bc','컨투어 맵','정면 열화상','좌우 근막 긴장<br>두부기울기·흉곽'],rear:['badge bc','컨투어 맵','후면 열화상','척추측만·견갑골<br>골반 PSIS']};
+  const cfg={side:['badge bp','일반 사진','측면 전신','귓불·어깨·고관절<br>무릎·복숭아뼈'],front:['badge bc','모아레 사진','정면 전신','등고선 좌우 대칭<br>어깨·골반 높이차'],rear:['badge bc','모아레 사진','후면 전신','척추측만·견갑골<br>골반 PSIS']};
   const[bc,bt,ti,su]=cfg[ch];s.innerHTML=`<span class="${bc}">${bt}</span><div class="slot-t">${ti}</div><div class="slot-s">${su}</div>`;
 }
 function triggerUp(ch){document.getElementById('fi-'+ch).click()}
@@ -697,28 +701,65 @@ function setStep(n){[1,2,3].forEach(i=>{document.getElementById('s'+i).className
 function buildContent(){
   const c=[];const ci=[];
   if(b64.side){c.push({type:"image",source:{type:"base64",media_type:files.side.type||"image/jpeg",data:b64.side}});ci.push("채널1: 측면 일반 사진")}
-  if(b64.front){c.push({type:"image",source:{type:"base64",media_type:files.front.type||"image/jpeg",data:b64.front}});ci.push("채널2: 정면 컨투어 맵")}
-  if(b64.rear){c.push({type:"image",source:{type:"base64",media_type:files.rear.type||"image/jpeg",data:b64.rear}});ci.push("채널3: 후면 컨투어 맵")}
+  if(b64.front){c.push({type:"image",source:{type:"base64",media_type:files.front.type||"image/jpeg",data:b64.front}});ci.push("채널2: 정면 모아레 사진")}
+  if(b64.rear){c.push({type:"image",source:{type:"base64",media_type:files.rear.type||"image/jpeg",data:b64.rear}});ci.push("채널3: 후면 모아레 사진")}
   const hs=!!b64.side,hf=!!b64.front,hr=!!b64.rear;
   c.push({type:"text",text:`당신은 정형외과 물리치료사이자 체형 분석 전문가입니다. 입력 채널: ${ci.join(', ')}
 
-[측면 ${hs?'입력됨':'없음'}] 랜드마크: 귓불→견봉→대전자→슬개골→외과. 귓불 2cm↑앞→FHP, 견봉앞→라운드숄더, 전만↑→장요근단축, 전만↓→햄스트링단축
-[정면 컨투어 ${hf?'입력됨':'없음'}] 수치: 어깨높이차±0.5, 견갑±0.5, 척주±1.0, 배꼽±0.3cm. 두부기울기·경추측방편위 정량화. 흉곽좌우면적비교→사각근·흉쇄유돌근 과부하. 붉은→과긴장, 녹→돌출, 청→위축
-[후면 컨투어 ${hr?'입력됨':'없음'}] 척추커브, 견갑높이차·Winging, PSIS높이차, 아킬레스. 수치: 허리±0.5, 배꼽아래±0.3cm
-교차검증: 3채널일치→true, 2채널→"partial", 1→false
-금기: LCS→굿모닝·요추신전, UCS→목과신전·오버헤드프레스
-처방: 1단계이완→2단계활성화. 중요: exercise_priority의 items 목록에 있는 모든 근육에 대해 각각 최소 1개 이상의 운동을 exercises에 반드시 포함할 것. items에 2개 근육이 있으면 exercises에도 최소 2개 이상 처방할 것.
-week_schedule은 7일치 배열로 "on"(운동일), "rest"(완전휴식), "light"(가벼운 활동) 중 하나씩 지정. 운동강도와 회복을 고려하여 현실적으로 구성할 것.
+=== 채널1: 측면 일반 사진 ${hs?'(입력됨)':'(없음 — 해당 항목 추정값 사용)'} ===
+5개 랜드마크 수직 정렬: 귓불→견봉→대전자→슬개골→외과
+- 귓불이 견봉보다 2cm 이상 앞 → 전방두부자세(FHP)
+- 견봉이 대전자보다 앞 → 라운드숄더
+- 흉추 과후만 → 흉추신전근 약화
+- 허리 전만 증가 + 복부 돌출 → 장요근·요추기립근 단축
+- 허리 전만 감소 → 햄스트링·복직근 단축
+
+=== 채널2: 정면 모아레 사진 ${hf?'(입력됨)':'(없음 — 해당 항목 null)'} ===
+모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다. 열화상이 아닙니다.
+분석 기준:
+- 등고선 좌우 완전 대칭 → 정상
+- 등고선 밀집(간격 좁음) → 해당 방향 경사 급함 → 근육 단축·긴장
+- 등고선 한쪽 편위·비대칭 → 구조적 비대칭 (어깨·골반 높이차)
+- 등고선 끊김·소실 → 해당 부위 함몰 → 근육 위축·약화
+- 등고선 팽창·볼록 → 해당 부위 돌출 → 근육·조직 과긴장
+수치 측정 (정상 범위):
+- 어깨높이차 ±0.5cm (초과→높은 쪽 상부승모근 과긴장)
+- 척주높이차 ±1.0cm (초과→척추측만 의심)
+- 배꼽간격 ±0.3cm (골반 회전 비대칭)
+- 두부 기울기: 귀 높이차 정량화, 방향 명시
+- 경추 측방 편위: 코-흉골병 수직선 편차
+- 흉곽 좌우 등고선 면적 비교 → 호흡 보조근(사각근·흉쇄유돌근) 과부하 여부
+
+=== 채널3: 후면 모아레 사진 ${hr?'(입력됨)':'(없음 — 해당 항목 null)'} ===
+분석 기준 (동일 등고선 해석 원칙 적용):
+- 척추 S/C자 등고선 커브 → 측만 여부·방향
+- 견갑골 좌우 등고선 높이차·돌출 비대칭 → Winging, 능형근 약화
+- 장골능(PSIS) 좌우 높이차 → 골반 기울임 방향
+- 요부 등고선 비대칭 → 요방형근 단축 방향
+수치 측정:
+- 견갑간격 ±0.5cm (벌어진 쪽 능형근 약화)
+- 허리간격 ±0.5cm (큰 쪽 요방형근 단축)
+- 배꼽아래간격 ±0.3cm (천장관절 불균형)
+
+=== 교차검증 ===
+측면+정면모아레+후면모아레 3채널 소견 일치 → cross_validated: true
+2채널 일치 → cross_validated: "partial"
+1채널 → cross_validated: false
+
+금기: LCS(골반전방경사)→굿모닝·과도한요추신전·풀스쿼트, FHP/UCS→목과신전·무거운오버헤드프레스
+처방: 1단계이완(과긴장 스트레칭 먼저) → 2단계활성화(약화 근육 강화 나중)
+중요: exercise_priority의 items 목록에 있는 모든 근육에 대해 각각 최소 1개 이상의 운동을 exercises에 반드시 포함할 것.
+week_schedule은 7일치 배열로 "on"(운동일), "rest"(완전휴식), "light"(가벼운 활동) 중 하나씩 지정.
 
 JSON만 출력:
-{"scores":{"total":"점수/100","sagittal":"점수/100","balance":"점수/100"},"findings":[{"level":"bad|warn|good","text":"<strong>소견</strong> — 설명","source":"side|front|rear"}],"landmarks_side":[{"name":"귓불","status":"bad","offset":"+0.0cm","note":"설명"},{"name":"견봉(어깨)","status":"ok","offset":"기준점","note":"설명"},{"name":"대전자(고관절)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"슬개골(무릎)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"외과(복숭아뼈)","status":"ok","offset":"기준점","note":"설명"}],"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":"설명"}],"measurements":[{"name":"어깨높이차","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":"설명"},{"name":"견갑간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"척주높이차","value":"0.0cm","normal":"±1.0cm","status":"ok","source":"rear","meaning":"설명"},{"name":"허리간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"배꼽간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":"설명"},{"name":"배꼽아래간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":"설명"}],"contour_front":[{"zone":"부위","color":"red","side":"bilateral","finding":"설명","muscle":"근육명"}],"contour_rear":[{"zone":"부위","color":"blue","side":"bilateral","finding":"설명","muscle":"근육명"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육명","level":85,"desc":"설명","evidence_channels":["side"],"cross_validated":true}],"weak_muscles":[{"name":"근육명","level":35,"desc":"설명","evidence_channels":["front"],"cross_validated":false}],"contraindications":[{"exercise":"금기운동","reason":"이유","pattern":"패턴"}],"exercise_priority":[{"phase":1,"label":"1단계 — 이완","items":[]},{"phase":2,"label":"2단계 — 활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":[]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`});
+{"scores":{"total":"점수/100","sagittal":"점수/100","balance":"점수/100"},"findings":[{"level":"bad|warn|good","text":"<strong>소견명</strong> — 설명","source":"side|front|rear"}],"landmarks_side":[{"name":"귓불","status":"bad","offset":"+0.0cm","note":"설명"},{"name":"견봉(어깨)","status":"ok","offset":"기준점","note":"설명"},{"name":"대전자(고관절)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"슬개골(무릎)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"외과(복숭아뼈)","status":"ok","offset":"기준점","note":"설명"}],"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":"설명"},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":"설명"}],"measurements":[{"name":"어깨높이차","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":"설명"},{"name":"견갑간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"척주높이차","value":"0.0cm","normal":"±1.0cm","status":"ok","source":"front","meaning":"설명"},{"name":"허리간격","value":"0.0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":"설명"},{"name":"배꼽간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":"설명"},{"name":"배꼽아래간격","value":"0.0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":"설명"}],"moire_front":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"moire_rear":[{"zone":"부위명","pattern":"dense|shifted|gap|bulge|symmetric","side":"left|right|bilateral","finding":"등고선 소견 설명","muscle":"해당 근육명","implication":"ok|tight|weak"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육명","level":85,"desc":"설명","evidence_channels":["side"],"cross_validated":true}],"weak_muscles":[{"name":"근육명","level":35,"desc":"설명","evidence_channels":["front"],"cross_validated":false}],"contraindications":[{"exercise":"금기운동","reason":"이유","pattern":"패턴"}],"exercise_priority":[{"phase":1,"label":"1단계 — 이완","items":[]},{"phase":2,"label":"2단계 — 활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":[]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`});
   return c;
 }
 
 async function startAna(){
   if(Object.values(b64).every(v=>!v))return;
   showSub('load');setStep(2);
-  const msgs=[['채널 통합 분석 중...','측면·정면·후면 파싱'],['랜드마크 검출 중...','귓불→견봉→대전자→슬개골→외과'],['두부·경추 정렬...','Head Tilt · 경추 측방 편위'],['흉곽 비대칭 분석...','사각근·흉쇄유돌근 과부하'],['교차검증·패턴 분류...','Janda 패턴 · 금기운동']];
+  const msgs=[['채널 통합 분석 중...','측면·정면·후면 파싱'],['랜드마크 검출 중...','귓불→견봉→대전자→슬개골→외과'],['두부·경추 정렬...','Head Tilt · 경추 측방 편위'],['모아레 등고선 분석...','좌우 대칭·밀집·편위 패턴 해석'],['교차검증·처방 생성...','핵심 근육 분류 · 운동 처방']];
   let mi=0;const tm=setInterval(()=>{mi=(mi+1)%msgs.length;document.getElementById('lt').textContent=msgs[mi][0];document.getElementById('ls').textContent=msgs[mi][1]},1700);
   try{
     const res=await fetch(API_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,messages:[{role:'user',content:buildContent()}]})});
@@ -732,7 +773,7 @@ async function startAna(){
 
 async function saveSess(r){
   if(!curPatient)return;
-  const body={patient_id:curPatient.id,session_date:document.getElementById('u-date').value||new Date().toISOString().slice(0,10),analyst:document.getElementById('u-analyst').value||null,channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},scores:r.scores,findings:r.findings,landmarks:r.landmarks_side,measurements:r.measurements,contour_front:r.contour_front,contour_rear:r.contour_rear,tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:r.posture_patterns||[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
+  const body={patient_id:curPatient.id,session_date:document.getElementById('u-date').value||new Date().toISOString().slice(0,10),analyst:document.getElementById('u-analyst').value||null,channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},scores:r.scores,findings:r.findings,landmarks:r.landmarks_side,measurements:r.measurements,contour_front:r.moire_front||[],contour_rear:r.moire_rear||[],tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
   const saved=await sbPost('sessions',body);
   curSession._sid=Array.isArray(saved)?saved[0]?.id:saved?.id;
   document.getElementById('save-status').innerHTML='<span style="font-size:11px;color:var(--acc);font-family:var(--mono)">저장됨 ✓</span>';
@@ -744,7 +785,7 @@ async function saveSess(r){
 async function viewSess(sid){
   const data=await sbGet('sessions',`?id=eq.${sid}`);
   const s=Array.isArray(data)?data[0]:data;if(!s)return;
-  curSession={posture_patterns:s.posture_patterns,scores:s.scores,findings:s.findings,landmarks_side:s.landmarks,measurements:s.measurements,contour_front:s.contour_front,contour_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,_sid:s.id};
+  curSession={scores:s.scores,findings:s.findings,landmarks_side:s.landmarks,measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,_sid:s.id};
   await loadCompare(s);renderResult(curSession);showSub('result');
 }
 
@@ -777,8 +818,35 @@ function renderResult(r){
   }
   renderLM(r.landmarks_side,'lm-side');renderLM(r.landmarks_front,'lm-front');
   document.getElementById('meas-grid').innerHTML=(r.measurements||[]).map(m=>{const src=m.source?`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'};margin-left:3px;font-family:var(--mono)">${chLbl[m.source]||m.source}</span>`:'';return`<div class="meas-c"><div class="meas-nm">${m.name}${src}</div><div style="display:flex;align-items:baseline;gap:5px"><span class="meas-v">${m.value}</span><span class="lm-st ${stCls[m.status]}" style="font-size:8px">${stLbl[m.status]}</span></div><div class="meas-r">정상 ${m.normal}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${m.meaning}</div></div>`}).join('');
-  function renderCnt(arr,id){if(!arr?.length){document.getElementById(id).innerHTML='<div style="font-size:11px;color:var(--txt3);padding:5px 0">미입력 채널</div>';return}document.getElementById(id).innerHTML=arr.map(c=>`<div class="cnt-row"><div class="cnt-cd" style="background:${cntC[c.color]||'#888'}"></div><div><div class="cnt-nm">${c.zone} <span style="font-size:9px;color:var(--txt3)">${c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)'}</span></div><div class="cnt-f">${c.finding}</div><div class="cnt-m">→ ${c.muscle}</div></div></div>`).join('')}
-  renderCnt(r.contour_front,'cnt-f');renderCnt(r.contour_rear,'cnt-r');
+  const patternLabel={'dense':'등고선 밀집','shifted':'등고선 편위','gap':'등고선 끊김','bulge':'등고선 돌출','symmetric':'좌우 대칭'};
+  const patternColor={'dense':'var(--err)','shifted':'var(--warn)','gap':'var(--info)','bulge':'var(--warn)','symmetric':'var(--acc)'};
+  const implLabel={'tight':'단축·과긴장','weak':'위축·약화','ok':'정상'};
+  const implColor={'tight':'var(--err-d)','weak':'var(--warn-d)','ok':'var(--acc-d)'};
+  const implBg={'tight':'var(--err-l)','weak':'var(--warn-l)','ok':'var(--acc-l)'};
+  function renderMoire(arr,id){
+    if(!arr?.length){document.getElementById(id).innerHTML='<div style="font-size:14px;color:var(--txt3);padding:8px 0">해당 채널 미입력</div>';return}
+    document.getElementById(id).innerHTML=arr.map(c=>{
+      const pc=patternColor[c.pattern]||'var(--txt3)';
+      const pl=patternLabel[c.pattern]||c.pattern;
+      const ic=implColor[c.implication]||'var(--txt2)';
+      const ib=implBg[c.implication]||'var(--bg2)';
+      const il=implLabel[c.implication]||c.implication;
+      const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';
+      return`<div class="cnt-row">
+        <div style="width:14px;height:14px;border-radius:50%;background:${pc};flex-shrink:0;margin-top:3px"></div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span class="cnt-nm">${c.zone}</span>
+            <span style="font-size:11px;color:var(--txt3)">${side}</span>
+            <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${ib};color:${ic};font-weight:700">${il}</span>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:${pc};margin-bottom:3px">${pl}</div>
+          <div class="cnt-f">${c.finding}</div>
+          <div class="cnt-m">→ ${c.muscle}</div>
+        </div>
+      </div>`}).join('')
+  }
+  renderMoire(r.moire_front,'cnt-f');renderMoire(r.moire_rear,'cnt-r');
   if(r.cross_validated_muscles?.length)document.getElementById('cross-box').innerHTML=`<div class="cross-box"><div class="cross-t">3채널 교차검증 핵심 근육</div>${r.cross_validated_muscles.map(m=>`<div style="font-size:11px;color:var(--err-d);padding:2px 0">▸ ${m}</div>`).join('')}</div>`;
   else document.getElementById('cross-box').innerHTML='';
   function renderM(arr,id,type){document.getElementById(id).innerHTML=(arr||[]).map(m=>{const cv=m.cross_validated===true?'<span class="cv-b cv-on">3채널</span>':m.cross_validated==='partial'?'<span class="cv-b cv-p">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px;font-family:var(--mono)">${chLbl[c]||c}</span>`).join('');return`<div class="mc"><div class="mc-hd"><span class="mc-nm">${m.name}</span><span class="mtag ${type==='tight'?'t-tight':'t-weak'}">${type==='tight'?'과긴장':'약화'}</span></div><div class="bar-bg"><div class="bar ${type==='tight'?'b-tight':'b-weak'}" style="width:0%" data-w="${m.level}%"></div></div><div class="mc-desc">${m.desc}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}
@@ -897,8 +965,14 @@ function buildPDFPages(){
   let pg2=`<div class="pdf-page">
   ${miniHdr}
   <div class="psec"><div class="psec-t">수치 측정표</div><table class="pdf-lm-tbl"><thead><tr><th>항목</th><th>측정값</th><th>정상범위</th><th>판정</th><th>채널</th><th>임상의미</th></tr></thead><tbody>${(r.measurements||[]).map(m=>`<tr><td style="font-weight:700;color:var(--txt)">${esc(m.name)}</td><td style="font-family:monospace;font-weight:700">${esc(m.value)}</td><td style="color:var(--txt3)">${esc(m.normal)}</td><td>${spill(m.status)}</td><td>${m.source?`<span class="stag" style="background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'}">${chLbl[m.source]||m.source}</span>`:''}</td><td>${esc(m.meaning)}</td></tr>`).join('')}</tbody></table></div>
-  <div class="psec"><div class="psec-t">정면 컨투어 맵</div><div class="pdf-cnt-grid">${(r.contour_front||[]).map(c=>`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${cntC[c.color]||'#888'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)'}</span></div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}</div></div>
-  <div class="psec"><div class="psec-t">후면 컨투어 맵</div><div class="pdf-cnt-grid">${(r.contour_rear||[]).map(c=>`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${cntC[c.color]||'#888'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)'}</span></div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}</div></div>
+  <div class="psec"><div class="psec-t">정면 모아레 — 등고선 분석</div>
+    <div class="pdf-cnt-grid">${(r.moire_front||[]).map(c=>{const pl={'dense':'밀집','shifted':'편위','gap':'끊김','bulge':'돌출','symmetric':'대칭'}[c.pattern]||c.pattern;const ic={'tight':'#791F1F','weak':'#633806','ok':'#085041'}[c.implication]||'#5f5e5a';const ib={'tight':'#FCEBEB','weak':'#FAEEDA','ok':'#E1F5EE'}[c.implication]||'#f7f7f5';const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';return`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${'dense'===c.pattern?'#E24B4A':'shifted'===c.pattern?'#BA7517':'gap'===c.pattern?'#185FA5':'bulge'===c.pattern?'#BA7517':'#1D9E75'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${side}</span> <span style="font-size:8px;padding:1px 5px;border-radius:10px;background:${ib};color:${ic};font-weight:700">${{'tight':'과긴장','weak':'약화','ok':'정상'}[c.implication]||c.implication}</span></div><div style="font-size:9px;font-weight:600;margin-top:1px">${pl}</div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`}).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}
+    </div>
+  </div>
+  <div class="psec"><div class="psec-t">후면 모아레 — 척추·견갑·골반 분석</div>
+    <div class="pdf-cnt-grid">${(r.moire_rear||[]).map(c=>{const pl={'dense':'밀집','shifted':'편위','gap':'끊김','bulge':'돌출','symmetric':'대칭'}[c.pattern]||c.pattern;const ic={'tight':'#791F1F','weak':'#633806','ok':'#085041'}[c.implication]||'#5f5e5a';const ib={'tight':'#FCEBEB','weak':'#FAEEDA','ok':'#E1F5EE'}[c.implication]||'#f7f7f5';const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';return`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${'dense'===c.pattern?'#E24B4A':'shifted'===c.pattern?'#BA7517':'gap'===c.pattern?'#185FA5':'bulge'===c.pattern?'#BA7517':'#1D9E75'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${side}</span> <span style="font-size:8px;padding:1px 5px;border-radius:10px;background:${ib};color:${ic};font-weight:700">${{'tight':'과긴장','weak':'약화','ok':'정상'}[c.implication]||c.implication}</span></div><div style="font-size:9px;font-weight:600;margin-top:1px">${pl}</div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`}).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}
+    </div>
+  </div>
   ${r.cross_validated_muscles?.length?`<div class="pdf-cross"><div style="font-size:9px;font-weight:700;color:var(--err-d);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">3채널 교차검증 핵심 교정 근육</div><div style="display:flex;gap:5px;flex-wrap:wrap">${r.cross_validated_muscles.map(m=>`<span style="font-size:10px;font-weight:700;color:var(--err-d);padding:2px 9px;background:#fff;border-radius:20px;border:0.5px solid var(--err)">${esc(m)}</span>`).join('')}</div></div>`:''}
   <div class="psec"><div class="psec-t">과긴장 근육</div><div class="pdf-mg">${(r.tight_muscles||[]).map(m=>{const cv=m.cross_validated===true?'<span class="spill s-b" style="font-size:8px">3채널</span>':m.cross_validated==='partial'?'<span class="spill s-w" style="font-size:8px">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span class="stag" style="background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px">${chLbl[c]||c}</span>`).join('');return`<div class="pdf-mc"><div class="pdf-mc-hd"><span style="font-size:11px;font-weight:700;color:var(--txt)">${esc(m.name)}</span><span class="mtag t-tight">과긴장</span></div><div class="pdf-bar-bg"><div class="pdf-bar-fill" style="width:${m.level||0}%;background:var(--err)"></div></div><div style="font-size:9px;color:var(--txt2);line-height:1.4">${esc(m.desc)}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}</div></div>
   <div class="psec"><div class="psec-t">약화된 근육</div><div class="pdf-mg">${(r.weak_muscles||[]).map(m=>{const cv=m.cross_validated===true?'<span class="spill s-b" style="font-size:8px">3채널</span>':m.cross_validated==='partial'?'<span class="spill s-w" style="font-size:8px">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span class="stag" style="background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px">${chLbl[c]||c}</span>`).join('');return`<div class="pdf-mc"><div class="pdf-mc-hd"><span style="font-size:11px;font-weight:700;color:var(--txt)">${esc(m.name)}</span><span class="mtag t-weak">약화</span></div><div class="pdf-bar-bg"><div class="pdf-bar-fill" style="width:${m.level||0}%;background:var(--warn)"></div></div><div style="font-size:9px;color:var(--txt2);line-height:1.4">${esc(m.desc)}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}</div></div>
@@ -940,7 +1014,7 @@ async function downloadPDF(){
 }
 
 // ── 폴백 ─────────────────────────────────────────────────────
-function getFallback(){return{posture_patterns:["UCS","LCS"],scores:{total:"64/100",sagittal:"67/100",balance:"61/100"},findings:[{level:"bad",text:"<strong>FHP</strong> — 귓불 3.2cm 전방",source:"side"},{level:"warn",text:"<strong>요추 과전만</strong> — 장요근 단축",source:"side"}],landmarks_side:[{name:"귓불",status:"bad",offset:"+3.2cm",note:"FHP 확진"},{name:"견봉(어깨)",status:"bad",offset:"+1.8cm",note:"전방경사"},{name:"대전자(고관절)",status:"ok",offset:"기준",note:"정상"},{name:"슬개골(무릎)",status:"ok",offset:"+0.3cm",note:"양호"},{name:"외과(복숭아뼈)",status:"ok",offset:"기준점",note:"정상"}],landmarks_front:[{name:"두부 기울기",status:"warn",offset:"0.8cm",direction:"left",note:"좌측 편위"},{name:"경추 측방 편위",status:"warn",offset:"0.5cm",direction:"left",note:"좌측 경추"},{name:"흉곽 비대칭",status:"warn",asymmetry_pct:"18%",dominant_side:"right",note:"우측 보조근 과부하"}],measurements:[{name:"어깨높이차",value:"1.1cm",normal:"±0.5cm",status:"bad",source:"front",meaning:"우측 상부승모근 과긴장"},{name:"견갑간격",value:"0.8cm",normal:"±0.5cm",status:"warn",source:"rear",meaning:"능형근 약화"},{name:"척주높이차",value:"0.7cm",normal:"±1.0cm",status:"ok",source:"rear",meaning:"정상"},{name:"허리간격",value:"0.4cm",normal:"±0.5cm",status:"ok",source:"rear",meaning:"정상"},{name:"배꼽간격",value:"0.6cm",normal:"±0.3cm",status:"bad",source:"front",meaning:"골반 우측 회전"},{name:"배꼽아래간격",value:"0.2cm",normal:"±0.3cm",status:"ok",source:"rear",meaning:"양호"}],contour_front:[{zone:"우측 상부 승모근",color:"red",side:"right",finding:"과긴장",muscle:"상부승모근"}],contour_rear:[{zone:"등 중앙",color:"blue",side:"bilateral",finding:"하부승모근 위축",muscle:"하부승모근"}],cross_validated_muscles:["소흉근","장요근"],tight_muscles:[{name:"소흉근",level:91,desc:"3채널 핵심",evidence_channels:["side","front","rear"],cross_validated:true},{name:"장요근",level:84,desc:"전만+컨투어",evidence_channels:["side","front","rear"],cross_validated:true}],weak_muscles:[{name:"복횡근",level:34,desc:"요추 불안정",evidence_channels:["side","front"],cross_validated:false},{name:"하부승모근",level:36,desc:"견갑 안정화",evidence_channels:["front","rear"],cross_validated:true}],contraindications:[{exercise:"굿모닝 운동",reason:"요추 과전만 악화",pattern:"LCS"},{exercise:"목 과신전",reason:"FHP 악화",pattern:"UCS"}],exercise_priority:[{phase:1,label:"1단계 — 이완",items:["소흉근","장요근"]},{phase:2,label:"2단계 — 활성화",items:["복횡근","하부승모근"]}],exercises:[{name:"소흉근 스트레칭",category:"스트레칭",phase:1,sets:"30초×3회",purpose:"소흉근 이완",target_muscles:["소흉근"],steps:["문틀에 팔꿈치 90도","몸 앞으로 기울이기","가슴 앞쪽 이완","호흡 내쉬며 심화"]},{name:"데드버그",category:"코어강화",phase:2,sets:"3세트×10회",purpose:"복횡근 활성화",target_muscles:["복횡근"],steps:["누워 팔다리 90도","허리 바닥 붙이기","교차로 내리기","허리 뜨지 않도록"]}],week_schedule:["on","on","rest","on","light","rest","on"]}}
+function getFallback(){return{scores:{total:"64/100",sagittal:"67/100",balance:"61/100"},findings:[{level:"bad",text:"<strong>전방두부자세(FHP)</strong> — 귓불이 견봉보다 3.2cm 전방",source:"side"},{level:"warn",text:"<strong>요추 과전만</strong> — 장요근 단축",source:"side"},{level:"warn",text:"<strong>우측 어깨 거상</strong> — 정면 모아레 등고선 우측 편위 1.1cm",source:"front"}],landmarks_side:[{name:"귓불",status:"bad",offset:"+3.2cm",note:"FHP 확진"},{name:"견봉(어깨)",status:"bad",offset:"+1.8cm",note:"전방경사"},{name:"대전자(고관절)",status:"ok",offset:"기준",note:"정상"},{name:"슬개골(무릎)",status:"ok",offset:"+0.3cm",note:"양호"},{name:"외과(복숭아뼈)",status:"ok",offset:"기준점",note:"정상"}],landmarks_front:[{name:"두부 기울기",status:"warn",offset:"0.8cm",direction:"left",note:"좌측 두부 편위 — 정면 모아레 확인"},{name:"경추 측방 편위",status:"warn",offset:"0.5cm",direction:"left",note:"좌측 경추 편위"},{name:"흉곽 비대칭",status:"warn",asymmetry_pct:"18%",dominant_side:"right",note:"우측 흉곽 등고선 밀집"}],measurements:[{name:"어깨높이차",value:"1.1cm",normal:"±0.5cm",status:"bad",source:"front",meaning:"우측 상부승모근 과긴장"},{name:"견갑간격",value:"0.8cm",normal:"±0.5cm",status:"warn",source:"rear",meaning:"우측 능형근 약화"},{name:"척주높이차",value:"0.7cm",normal:"±1.0cm",status:"ok",source:"front",meaning:"정상"},{name:"허리간격",value:"0.4cm",normal:"±0.5cm",status:"ok",source:"rear",meaning:"정상"},{name:"배꼽간격",value:"0.6cm",normal:"±0.3cm",status:"bad",source:"front",meaning:"골반 우측 회전"},{name:"배꼽아래간격",value:"0.2cm",normal:"±0.3cm",status:"ok",source:"rear",meaning:"양호"}],moire_front:[{zone:"우측 어깨 부위",pattern:"shifted",side:"right",finding:"등고선 우측으로 0.8cm 편위 — 우측 상부승모근 단축",muscle:"상부승모근",implication:"tight"},{zone:"흉부 전면",pattern:"dense",side:"bilateral",finding:"등고선 밀집 — 소흉근 양측 단축",muscle:"소흉근",implication:"tight"},{zone:"복부 중앙",pattern:"bulge",side:"bilateral",finding:"등고선 전방 돌출 — 장요근 긴장",muscle:"장요근",implication:"tight"}],moire_rear:[{zone:"우측 견갑골",pattern:"bulge",side:"right",finding:"견갑골 우측 돌출 — Winging 소견",muscle:"능형근·전거근",implication:"weak"},{zone:"등 중앙",pattern:"gap",side:"bilateral",finding:"등고선 소실 — 하부승모근 위축",muscle:"하부승모근",implication:"weak"},{zone:"우측 요부",pattern:"dense",side:"right",finding:"등고선 밀집 — 요방형근 과긴장",muscle:"요방형근",implication:"tight"}],cross_validated_muscles:["소흉근","장요근"],tight_muscles:[{name:"소흉근",level:91,desc:"정면 모아레 등고선 밀집 + 측면 라운드숄더",evidence_channels:["side","front"],cross_validated:true},{name:"장요근",level:84,desc:"정면 복부 돌출 + 측면 전만 증가",evidence_channels:["side","front"],cross_validated:true},{name:"상부승모근",level:80,desc:"정면 모아레 우측 편위 + 어깨높이차",evidence_channels:["front"],cross_validated:false}],weak_muscles:[{name:"복횡근",level:34,desc:"요추 불안정",evidence_channels:["side","front"],cross_validated:false},{name:"하부승모근",level:36,desc:"후면 모아레 등고선 소실",evidence_channels:["rear"],cross_validated:false},{name:"능형근",level:38,desc:"후면 견갑 돌출 + 견갑간격",evidence_channels:["front","rear"],cross_validated:true}],contraindications:[{exercise:"굿모닝 운동",reason:"요추 과전만 악화",pattern:"LCS"},{exercise:"목 과신전",reason:"FHP 악화",pattern:"UCS"}],exercise_priority:[{phase:1,label:"1단계 — 이완",items:["소흉근","장요근","상부승모근"]},{phase:2,label:"2단계 — 활성화",items:["복횡근","하부승모근","능형근"]}],exercises:[{name:"소흉근 도어 스트레칭",category:"스트레칭",phase:1,sets:"30초×3회",purpose:"소흉근 이완",target_muscles:["소흉근"],steps:["문틀에 팔꿈치 90도","몸 앞으로 기울이기","가슴 앞쪽 이완","호흡 내쉬며 심화"]},{name:"힙 플렉서 런지 스트레칭",category:"스트레칭",phase:1,sets:"40초×3회",purpose:"장요근 이완",target_muscles:["장요근"],steps:["한쪽 무릎 바닥에 대기","골반 앞으로 밀기","고관절 앞쪽 이완","상체 세우고 호흡"]},{name:"상부승모근 스트레칭",category:"스트레칭",phase:1,sets:"30초×3회",purpose:"상부승모근 이완",target_muscles:["상부승모근"],steps:["한손으로 머리 옆으로 당기기","반대쪽 어깨 내리기","목 측면 이완 느끼기"]},{name:"데드버그",category:"코어강화",phase:2,sets:"3세트×10회",purpose:"복횡근 활성화",target_muscles:["복횡근"],steps:["누워 팔다리 90도","허리 바닥 붙이기","교차로 내리기","허리 뜨지 않도록"]},{name:"페이스 풀 밴드",category:"교정운동",phase:2,sets:"3세트×15회",purpose:"하부승모근·능형근 강화",target_muscles:["하부승모근","능형근"],steps:["밴드 눈높이 고정","팔꿈치 귀 높이로","얼굴 쪽으로 당기기","견갑골 모으기"]}],week_schedule:["on","on","rest","on","light","rest","on"]}}
 </script>
 </body>
 </html>
