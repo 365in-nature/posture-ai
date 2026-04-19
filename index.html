@@ -346,6 +346,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
           <div><div class="form-label">생년월일</div><input id="np-birth" type="date"></div>
           <div><div class="form-label">성별</div><select id="np-gender"><option value="">선택</option><option value="M">남성</option><option value="F">여성</option></select></div>
         </div>
+        <div class="form-row">
+          <div><div class="form-label">키 (cm)</div><input id="np-height" type="number" min="50" max="250" step="0.1" placeholder="예: 172.5"></div>
+          <div><div class="form-label">체중 (kg)</div><input id="np-weight" type="number" min="10" max="300" step="0.1" placeholder="예: 68.0"></div>
+        </div>
         <div id="np-msg"></div>
         <div class="actions">
           <button class="btn btn-sm" onclick="showSub('patients')">취소</button>
@@ -402,9 +406,23 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
           <div><div class="form-label">차트번호</div><input id="u-chart" readonly style="background:var(--bg3)"></div>
           <div><div class="form-label">환자명</div><input id="u-name" readonly style="background:var(--bg3)"></div>
         </div>
-        <div class="form-row" style="margin-bottom:0">
+        <div class="form-row" style="margin-bottom:.5rem">
           <div><div class="form-label">분석 날짜</div><input id="u-date" type="date"></div>
           <div><div class="form-label">분석자</div><input id="u-analyst" placeholder="담당자 이름"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <div>
+            <div class="form-label">키 (cm)</div>
+            <input id="u-height" type="number" min="50" max="250" step="0.1" placeholder="예: 172.5">
+          </div>
+          <div>
+            <div class="form-label">체중 (kg)</div>
+            <input id="u-weight" type="number" min="10" max="300" step="0.1" placeholder="예: 68.0">
+          </div>
+        </div>
+        <div id="u-bmi-display" style="margin-top:.6rem;font-size:13px;color:var(--txt2);display:none">
+          BMI: <span id="u-bmi-val" style="font-weight:700;font-family:var(--mono)"></span>
+          <span id="u-bmi-cat" style="margin-left:6px;font-size:12px;padding:2px 8px;border-radius:20px"></span>
         </div>
       </div>
       <div class="card">
@@ -717,7 +735,12 @@ async function selectPt(id){
   showSub('patient-detail');
   document.getElementById('pd-chart').textContent=curPatient.chart_no;
   document.getElementById('pd-name').textContent=curPatient.name;
-  document.getElementById('pd-info').textContent=[curPatient.birth_date,{M:'남성',F:'여성','':''}[curPatient.gender||'']].filter(Boolean).join(' · ');
+  document.getElementById('pd-info').textContent=[
+    curPatient.birth_date,
+    {M:'남성',F:'여성','':''}[curPatient.gender||''],
+    curPatient.height_cm?curPatient.height_cm+'cm':null,
+    curPatient.weight_kg?curPatient.weight_kg+'kg':null
+  ].filter(Boolean).join(' · ');
 }
 let compareMode=false;
 let selectedSessions=[];
@@ -975,7 +998,13 @@ async function savePt(){
   const chart=document.getElementById('np-chart').value.trim();
   const name=document.getElementById('np-name').value.trim();
   if(!chart||!name){document.getElementById('np-msg').innerHTML='<div class="alert-e">차트번호와 이름은 필수입니다</div>';return}
-  const res=await sbPost('patients',{chart_no:chart,name,birth_date:document.getElementById('np-birth').value||null,gender:document.getElementById('np-gender').value||null});
+  const res=await sbPost('patients',{
+    chart_no:chart,name,
+    birth_date:document.getElementById('np-birth').value||null,
+    gender:document.getElementById('np-gender').value||null,
+    height_cm:parseFloat(document.getElementById('np-height').value)||null,
+    weight_kg:parseFloat(document.getElementById('np-weight').value)||null
+  });
   if(res.code||res.error){document.getElementById('np-msg').innerHTML=`<div class="alert-e">${res.message||'저장 실패. 차트번호 중복 확인'}</div>`;return}
   curPatient=Array.isArray(res)?res[0]:res;allPatients.unshift(curPatient);showSub('patient-detail');
 }
@@ -989,7 +1018,35 @@ function startSession(){
   document.getElementById('u-name').value=curPatient.name;
   document.getElementById('u-date').valueAsDate=new Date();
   document.getElementById('u-analyst').value=curUser?.display_name||'';
+  // 환자 등록 시 저장된 키/체중 자동 불러오기
+  document.getElementById('u-height').value=curPatient.height_cm||'';
+  document.getElementById('u-weight').value=curPatient.weight_kg||'';
+  updateBMI();
+  // 키/체중 변경 시 BMI 실시간 업데이트
+  document.getElementById('u-height').oninput=updateBMI;
+  document.getElementById('u-weight').oninput=updateBMI;
   setStep(1);showSub('upload');
+}
+
+function updateBMI(){
+  const h=parseFloat(document.getElementById('u-height').value);
+  const w=parseFloat(document.getElementById('u-weight').value);
+  const disp=document.getElementById('u-bmi-display');
+  if(!h||!w||h<50||w<10){disp.style.display='none';return;}
+  const bmi=w/((h/100)**2);
+  const bmiVal=document.getElementById('u-bmi-val');
+  const bmiCat=document.getElementById('u-bmi-cat');
+  bmiVal.textContent=bmi.toFixed(1);
+  let cat,bg,col;
+  if(bmi<18.5){cat='저체중';bg='var(--info-l)';col='var(--info-d)';}
+  else if(bmi<23){cat='정상';bg='var(--acc-l)';col='var(--acc-d)';}
+  else if(bmi<25){cat='과체중';bg='var(--warn-l)';col='var(--warn-d)';}
+  else if(bmi<30){cat='비만 1단계';bg='var(--warn-l)';col='var(--warn-d)';}
+  else{cat='비만 2단계';bg='var(--err-l)';col='var(--err-d)';}
+  bmiCat.textContent=cat;
+  bmiCat.style.background=bg;
+  bmiCat.style.color=col;
+  disp.style.display='block';
 }
 function resetSlot(ch){
   const s=document.getElementById('slot-'+ch);s.onclick=()=>triggerUp(ch);
@@ -1030,6 +1087,42 @@ function updateProg(){const cnt=Object.values(b64).filter(Boolean).length;docume
 function setStep(n){[1,2,3].forEach(i=>{document.getElementById('s'+i).className='step'+(i<n?' done':i===n?' active':'');if(i<3)document.getElementById('sl'+i).className='sline'+(i<n?' done':'')})}
 
 // ── AI 분석 ───────────────────────────────────────────────────
+// ── 키 기반 px→cm 환산 ───────────────────────────────────────
+// 귓불~외과(발목) 거리는 전체 키의 약 88~90%
+// 성별·연령에 따라 미세하게 다르지만 0.89를 기본값으로 사용
+const EAR_ANKLE_RATIO=0.89;
+
+function getPxPerCm(lms, imgEl){
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
+  const heightCm=parseFloat(document.getElementById('u-height')?.value)||null;
+  const earAnklePx=Math.abs(lms.ankle.y-lms.ear.y)*dh;
+
+  if(heightCm&&heightCm>=50&&heightCm<=250){
+    // 실제 키로 정밀 계산
+    const earAnkleCm=heightCm*EAR_ANKLE_RATIO;
+    return earAnklePx/earAnkleCm;
+  }else{
+    // 키 미입력 시 평균 신장(165cm) 기반
+    return earAnklePx/(165*EAR_ANKLE_RATIO);
+  }
+}
+
+function getBodyInfo(){
+  const h=parseFloat(document.getElementById('u-height')?.value)||null;
+  const w=parseFloat(document.getElementById('u-weight')?.value)||null;
+  if(!h&&!w)return null;
+  const bmi=h&&w?parseFloat((w/((h/100)**2)).toFixed(1)):null;
+  let bmiCat=null;
+  if(bmi){
+    if(bmi<18.5)bmiCat='저체중';
+    else if(bmi<23)bmiCat='정상';
+    else if(bmi<25)bmiCat='과체중';
+    else if(bmi<30)bmiCat='비만 1단계';
+    else bmiCat='비만 2단계';
+  }
+  return{height_cm:h,weight_kg:w,bmi,bmi_category:bmiCat};
+}
+
 // ── Claude Vision 랜드마크 추정 ──────────────────────────────
 let mpLandmarks=null; // {ear,shoulder,hip,knee,ankle} 각 {x,y} 0~1 비율
 
@@ -1044,8 +1137,13 @@ async function runMediaPipe(imgSrc){
   status.style.color='var(--warn-d)';
 
   try{
+    const bodyInfo=getBodyInfo();
+    const heightHint=bodyInfo?.height_cm
+      ?`\n환자 실제 키: ${bodyInfo.height_cm}cm (귓불~발목 ≈ ${(bodyInfo.height_cm*EAR_ANKLE_RATIO).toFixed(1)}cm). 이 값을 기준으로 cm 환산하세요.`
+      :'\n키 미입력. 인체 평균 비율로 추정하세요.';
+
     const prompt=`당신은 정형외과 전문의입니다. 이 측면 전신 이미지를 직접 시각적으로 분석하세요.
-이미지는 3D 렌더링, 스캔, 실제 사진 중 하나일 수 있습니다.
+이미지는 3D 렌더링, 스캔, 실제 사진 중 하나일 수 있습니다.${heightHint}
 
 [임무 1] 임상적 시각 판단 — 편차값 측정
 이미지를 보고 5개 해부학적 랜드마크 간의 수직 정렬을 직접 판단하세요.
@@ -1197,8 +1295,7 @@ function drawCVOverlay(lms, imgEl){
 
 function renderCVTable(lms, imgEl){
   const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
-  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
-  const pxPerCm=Math.abs(lms.ankle.y-lms.ear.y)*dh/150;
+  const pxPerCm=getPxPerCm(lms,imgEl);
   const refX=lms.shoulder.x;
   const order=['ear','shoulder','hip','knee','ankle'];
   const labels={ear:'귓불',shoulder:'견봉 (기준)',hip:'대전자',knee:'슬개골',ankle:'외과'};
@@ -1469,10 +1566,11 @@ function getMPDataForPrompt(){
   const lms=mpLandmarks;
   const imgEl=document.getElementById('mp-img');
   const dw=imgEl.offsetWidth||400;
-  const dh=imgEl.offsetHeight||600;
-  const pxPerCm=Math.abs(lms.ankle.y-lms.ear.y)*dh/150;
+  const pxPerCm=getPxPerCm(lms,imgEl);
   const refX=lms.shoulder.x;
   const hasClinical=!!lms.clinical;
+  const bodyInfo=getBodyInfo();
+
   const order=[
     {k:'ear',   name:'귓불'},
     {k:'shoulder',name:'견봉'},
@@ -1494,12 +1592,20 @@ function getMPDataForPrompt(){
 
   const src=hasClinical?'Claude Vision 시각 판단':'의료진 수동 조정';
   const note=hasClinical&&lms.clinical.note?`\n판단 근거: ${lms.clinical.note}`:'';
+  const heightNote=bodyInfo?.height_cm
+    ?`\n환산 기준: 실제 키 ${bodyInfo.height_cm}cm × ${EAR_ANKLE_RATIO} = 귓불~외과 ${(bodyInfo.height_cm*EAR_ANKLE_RATIO).toFixed(1)}cm`
+    :'\n환산 기준: 평균 신장(165cm) 추정값 — 키 미입력으로 정확도 낮을 수 있음';
 
-  return`\n=== 랜드마크 실측값 [${src}] (${lms.side==='left'?'좌측':'우측'} 기준) ===
-견봉 수직선 기준 전방(+) / 후방(-) · 단위: cm${note}
+  const bodyStr=bodyInfo
+    ?`\n=== 신체 계측값 ===\n  키: ${bodyInfo.height_cm||'미입력'}cm / 체중: ${bodyInfo.weight_kg||'미입력'}kg / BMI: ${bodyInfo.bmi||'—'} (${bodyInfo.bmi_category||'—'})`
+    :'';
+
+  return`\n=== 랜드마크 실측값 [${src}] (${lms.side==='left'?'좌측':'우측'} 기준) ===${note}${heightNote}
+견봉 수직선 기준 전방(+) / 후방(-) · 단위: cm
 ${lines}
 귓불 +2.0cm 이상 → FHP 확진, 견봉이 대전자보다 전방 → 라운드숄더.
 이 값을 landmarks_side의 offset으로 사용하세요.
+${bodyStr}
 `;
 }
 
@@ -1510,8 +1616,10 @@ function buildContent(){
   if(b64.rear){c.push({type:"image",source:{type:"base64",media_type:files.rear.type||"image/jpeg",data:b64.rear}});ci.push("채널3: 후면 모아레 사진")}
   const hs=!!b64.side,hf=!!b64.front,hr=!!b64.rear;
   const mpData=getMPDataForPrompt();
+  const bodyInfo=getBodyInfo();
+  const bodyStr=bodyInfo?`\n=== 환자 신체 계측값 ===\n키: ${bodyInfo.height_cm||'미입력'}cm / 체중: ${bodyInfo.weight_kg||'미입력'}kg / BMI: ${bodyInfo.bmi||'—'} (${bodyInfo.bmi_category||'—'})\n`:'';
   c.push({type:"text",text:`당신은 정형외과 물리치료사이자 체형 분석 전문가입니다. 입력 채널: ${ci.join(', ')}
-${mpData}
+${bodyStr}${mpData}
 === 채널1: 측면 일반 사진 ${hs?'(입력됨)':'(없음 — 해당 항목 추정값 사용)'} ===
 5개 랜드마크 수직 정렬: 귓불→견봉→대전자→슬개골→외과
 - 귓불이 견봉보다 2cm 이상 앞 → 전방두부자세(FHP)
@@ -1585,7 +1693,13 @@ async function startAna(){
 
 async function saveSess(r){
   if(!curPatient)return;
-  const body={patient_id:curPatient.id,session_date:document.getElementById('u-date').value||new Date().toISOString().slice(0,10),analyst:document.getElementById('u-analyst').value||null,channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},scores:r.scores,findings:r.findings,landmarks:r.landmarks_side,measurements:r.measurements,contour_front:r.moire_front||[],contour_rear:r.moire_rear||[],tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
+  const body={
+    patient_id:curPatient.id,
+    session_date:document.getElementById('u-date').value||new Date().toISOString().slice(0,10),
+    analyst:document.getElementById('u-analyst').value||null,
+    height_cm:parseFloat(document.getElementById('u-height')?.value)||null,
+    weight_kg:parseFloat(document.getElementById('u-weight')?.value)||null,
+    channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},scores:r.scores,findings:r.findings,landmarks:r.landmarks_side,measurements:r.measurements,contour_front:r.moire_front||[],contour_rear:r.moire_rear||[],tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
   const saved=await sbPost('sessions',body);
   curSession._sid=Array.isArray(saved)?saved[0]?.id:saved?.id;
   document.getElementById('save-status').innerHTML='<span style="font-size:11px;color:var(--acc);font-family:var(--mono)">저장됨 ✓</span>';
@@ -1760,7 +1874,7 @@ function buildPDFPages(){
   const icons={bad:'!',warn:'~',good:'✓'};
   const days=['월','화','수','목','금','토','일'];
 
-  const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}</div></div></div>`;
+  const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}<br>${r.height_cm?r.height_cm+'cm':'—'} / ${r.weight_kg?r.weight_kg+'kg':'—'}${r.height_cm&&r.weight_kg?' · BMI '+(r.weight_kg/((r.height_cm/100)**2)).toFixed(1):''}</div></div></div>`;
   const miniHdr=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;font-weight:700">${esc(p.name)} · ${esc(p.chart_no)}</span><span style="font-size:9px;color:var(--txt3)">${r.session_date||now}</span></div>`;
 
   // 페이지 1
