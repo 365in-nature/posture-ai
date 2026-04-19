@@ -1703,7 +1703,7 @@ ${bodyStr}
 `;
 }
 
-function buildContent(){
+function buildContent(phase='phase1', phase1Result=null){
   const c=[];const ci=[];
   if(b64.side){c.push({type:"image",source:{type:"base64",media_type:files.side.type||"image/jpeg",data:b64.side}});ci.push("채널1: 측면 일반 사진")}
   if(b64.front){c.push({type:"image",source:{type:"base64",media_type:files.front.type||"image/jpeg",data:b64.front}});ci.push("채널2: 정면 모아레 사진")}
@@ -1712,10 +1712,29 @@ function buildContent(){
   const mpData=getMPDataForPrompt();
   const bodyInfo=getBodyInfo();
   const bodyStr=bodyInfo?`\n=== 환자 신체 계측값 ===\n키: ${bodyInfo.height_cm||'미입력'}cm / 체중: ${bodyInfo.weight_kg||'미입력'}kg / BMI: ${bodyInfo.bmi||'—'} (${bodyInfo.bmi_category||'—'})\n`:'';
-
-  // 조정된 랜드마크 값을 직접 JSON으로 구성
   const lmSideJSON=buildLandmarkSideJSON();
 
+  if(phase==='phase2'&&phase1Result){
+    // 2단계: 1단계 결과를 바탕으로 운동 처방만 생성
+    const p1summary=`
+소견 요약: ${(phase1Result.findings||[]).map(f=>f.text?.replace(/<[^>]+>/g,'')).join(' / ')}
+과긴장 근육: ${(phase1Result.tight_muscles||[]).map(m=>m.name).join(', ')}
+약화 근육: ${(phase1Result.weak_muscles||[]).map(m=>m.name).join(', ')}`;
+    c.push({type:"text",text:`당신은 정형외과 물리치료사입니다. 아래 체형 분석 결과를 바탕으로 운동 처방을 작성하세요.
+${bodyStr}${p1summary}
+
+처방 원칙:
+- 1단계 이완: 과긴장 근육 스트레칭 (과긴장 근육 각각 최소 1개 운동)
+- 2단계 활성화: 약화 근육 강화 (약화 근육 각각 최소 1개 운동)
+- 금기: FHP→목 과신전, 골반전방경사→굿모닝·과도한 요추신전
+- week_schedule: 7일치, "on"(운동일)/"rest"(완전휴식)/"light"(가벼운 활동)
+
+JSON만 출력:
+{"exercise_priority":[{"phase":1,"label":"1단계—이완","items":[]},{"phase":2,"label":"2단계—활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":["동작1","동작2"]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`});
+    return c;
+  }
+
+  // 1단계: 소견·랜드마크·수치·모아레·근육
   c.push({type:"text",text:`당신은 정형외과 물리치료사이자 체형 분석 전문가입니다. 입력 채널: ${ci.join(', ')}
 ${bodyStr}${mpData}
 === 채널1: 측면 일반 사진 ${hs?'(입력됨)':'(없음 — 해당 항목 추정값 사용)'} ===
@@ -1728,56 +1747,26 @@ ${bodyStr}${mpData}
 ${mpData?'⚠️ landmarks_side의 offset은 위에서 제공한 실측값을 그대로 사용하고 절대 변경하지 마세요.':''}
 
 === 채널2: 정면 모아레 사진 ${hf?'(입력됨)':'(없음 — 해당 항목 null)'} ===
-모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다. 열화상이 아닙니다.
-분석 기준:
-- 등고선 좌우 완전 대칭 → 정상
-- 등고선 밀집(간격 좁음) → 해당 방향 경사 급함 → 근육 단축·긴장
-- 등고선 한쪽 편위·비대칭 → 구조적 비대칭 (어깨·골반 높이차)
-- 등고선 끊김·소실 → 해당 부위 함몰 → 근육 위축·약화
-- 등고선 팽창·볼록 → 해당 부위 돌출 → 근육·조직 과긴장
-수치 측정 (정상 범위):
-- 어깨높이차 ±0.5cm (초과→높은 쪽 상부승모근 과긴장)
-- 척주높이차 ±1.0cm (초과→척추측만 의심)
-- 배꼽간격 ±0.3cm (골반 회전 비대칭)
-- 두부 기울기: 귀 높이차 정량화, 방향 명시
-- 경추 측방 편위: 코-흉골병 수직선 편차
-- 흉곽 좌우 등고선 면적 비교 → 호흡 보조근(사각근·흉쇄유돌근) 과부하 여부
+모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다.
+- 등고선 밀집 → 근육 단축·긴장 / 등고선 편위·비대칭 → 구조적 비대칭
+- 등고선 끊김 → 근육 위축·약화 / 등고선 팽창 → 과긴장
+- 어깨높이차 ±0.5cm / 척주높이차 ±1.0cm / 배꼽간격 ±0.3cm
 
 === 채널3: 후면 모아레 사진 ${hr?'(입력됨)':'(없음 — 해당 항목 null)'} ===
-분석 기준 (동일 등고선 해석 원칙 적용):
-- 척추 S/C자 등고선 커브 → 측만 여부·방향
-- 견갑골 좌우 등고선 높이차·돌출 비대칭 → Winging, 능형근 약화
-- 장골능(PSIS) 좌우 높이차 → 골반 기울임 방향
-- 요부 등고선 비대칭 → 요방형근 단축 방향
-수치 측정:
-- 견갑간격 ±0.5cm (벌어진 쪽 능형근 약화)
-- 허리간격 ±0.5cm (큰 쪽 요방형근 단축)
-- 배꼽아래간격 ±0.3cm (천장관절 불균형)
+- 척추 S/C자 커브 / 견갑골 비대칭·Winging / PSIS 높이차 / 요방형근 비대칭
+- 견갑간격 ±0.5cm / 허리간격 ±0.5cm / 배꼽아래간격 ±0.3cm
 
 === 교차검증 ===
-측면+정면모아레+후면모아레 3채널 소견 일치 → cross_validated: true
-2채널 일치 → cross_validated: "partial"
-1채널 → cross_validated: false
+3채널 일치→true / 2채널→"partial" / 1채널→false
 
 === 소견 작성 원칙 ===
-findings는 관찰된 패턴을 구체적으로 서술하세요. 점수나 등급이 아닌 "무엇이 보이는가"를 중심으로.
-예: "귓불이 견봉보다 전방에 위치 — 전방두부자세(FHP) 소견" / "정면 모아레 우측 어깨 등고선 밀집 — 우측 상부승모근 단축 패턴"
+"무엇이 보이는가"를 수치와 함께 구체적으로 서술.
+[귓불 편차 등급] ok:<1cm / warn:1~2.5cm / bad:≥2.5cm(FHP) — Hansraj 2014
+[어깨높이차 등급] ok:<0.5cm / warn:0.5~1cm / bad:≥1cm — Kendall 2005
+⚠️ status는 반드시 "ok","warn","bad" 중 하나만 사용.
 
-=== 문헌 기반 status 판정 기준 ===
-[귓불 편차 - Hansraj 2014 기준]
-ok: 1cm 미만 / warn: 1~2.5cm / bad: 2.5cm 이상(FHP)
-[어깨높이차 - Kendall 2005 기준]
-ok: 0.5cm 미만 / warn: 0.5~1cm / bad: 1cm 이상
-[그 외 항목] 문헌 기반 컷오프 없음 → 육안 소견으로 ok/warn/bad 판단
-⚠️ status 필드는 반드시 "ok", "warn", "bad" 세 값 중 하나만 사용할 것.
-
-금기: LCS(골반전방경사)→굿모닝·과도한요추신전·풀스쿼트, FHP/UCS→목과신전·무거운오버헤드프레스
-처방: 1단계이완(과긴장 스트레칭 먼저) → 2단계활성화(약화 근육 강화 나중)
-중요: exercise_priority의 items 목록에 있는 모든 근육에 대해 각각 최소 1개 이상의 운동을 exercises에 반드시 포함할 것.
-week_schedule은 7일치 배열로 "on"(운동일), "rest"(완전휴식), "light"(가벼운 활동) 중 하나씩 지정.
-
-JSON만 출력 (다른 텍스트 없이, 마크다운 코드블록 없이):
-{"findings":[{"level":"bad","text":"<strong>소견명</strong>—구체적 소견 설명 (수치 포함)","source":"side"}],"landmarks_side":LANDMARKS_SIDE_PLACEHOLDER,"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":""},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":""},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":""}],"measurements":[{"name":"어깨높이차","value":"0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":""},{"name":"견갑간격","value":"0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":""},{"name":"척주높이차","value":"0cm","normal":"±1.0cm","status":"ok","source":"front","meaning":""},{"name":"허리간격","value":"0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":""},{"name":"배꼽간격","value":"0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":""},{"name":"배꼽아래간격","value":"0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":""}],"moire_front":[{"zone":"부위","pattern":"dense","side":"bilateral","finding":"설명","muscle":"근육","implication":"tight"}],"moire_rear":[{"zone":"부위","pattern":"dense","side":"bilateral","finding":"설명","muscle":"근육","implication":"tight"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육","level":80,"desc":"설명","evidence_channels":["side"],"cross_validated":false}],"weak_muscles":[{"name":"근육","level":30,"desc":"설명","evidence_channels":["front"],"cross_validated":false}],"exercise_priority":[{"phase":1,"label":"1단계—이완","items":[]},{"phase":2,"label":"2단계—활성화","items":[]}],"exercises":[{"name":"운동명","category":"스트레칭","phase":1,"sets":"세트","purpose":"목적","target_muscles":[],"steps":["동작1"]}],"week_schedule":["on","on","rest","on","light","rest","on"]}`
+JSON만 출력 (마크다운 없이):
+{"findings":[{"level":"bad","text":"<strong>소견명</strong>—설명(수치포함)","source":"side"}],"landmarks_side":LANDMARKS_SIDE_PLACEHOLDER,"landmarks_front":[{"name":"두부 기울기","status":"ok","offset":"0.0cm","direction":"none","note":""},{"name":"경추 측방 편위","status":"ok","offset":"0.0cm","direction":"none","note":""},{"name":"흉곽 비대칭","status":"ok","asymmetry_pct":"0%","dominant_side":"none","note":""}],"measurements":[{"name":"어깨높이차","value":"0cm","normal":"±0.5cm","status":"ok","source":"front","meaning":""},{"name":"견갑간격","value":"0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":""},{"name":"척주높이차","value":"0cm","normal":"±1.0cm","status":"ok","source":"front","meaning":""},{"name":"허리간격","value":"0cm","normal":"±0.5cm","status":"ok","source":"rear","meaning":""},{"name":"배꼽간격","value":"0cm","normal":"±0.3cm","status":"ok","source":"front","meaning":""},{"name":"배꼽아래간격","value":"0cm","normal":"±0.3cm","status":"ok","source":"rear","meaning":""}],"moire_front":[{"zone":"부위","pattern":"dense","side":"bilateral","finding":"설명","muscle":"근육","implication":"tight"}],"moire_rear":[{"zone":"부위","pattern":"dense","side":"bilateral","finding":"설명","muscle":"근육","implication":"tight"}],"cross_validated_muscles":[],"tight_muscles":[{"name":"근육","level":80,"desc":"설명","evidence_channels":["side"],"cross_validated":false}],"weak_muscles":[{"name":"근육","level":30,"desc":"설명","evidence_channels":["front"],"cross_validated":false}]}`
     .replace('"LANDMARKS_SIDE_PLACEHOLDER"', lmSideJSON)
   });
   return c;
@@ -1789,34 +1778,40 @@ async function startAna(){
   const msgs=[['채널 통합 분석 중...','측면·정면·후면 파싱'],['랜드마크 검출 중...','귓불→견봉→대전자→슬개골→외과'],['두부·경추 정렬...','Head Tilt · 경추 측방 편위'],['모아레 등고선 분석...','좌우 대칭·밀집·편위 패턴 해석'],['교차검증·처방 생성...','핵심 근육 분류 · 운동 처방']];
   let mi=0;const tm=setInterval(()=>{mi=(mi+1)%msgs.length;document.getElementById('lt').textContent=msgs[mi][0];document.getElementById('ls').textContent=msgs[mi][1]},1700);
   try{
-    const res=await fetch(API_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4096,messages:[{role:'user',content:buildContent()}]})});
+    // 1단계: 소견·랜드마크·수치·모아레·근육
+    const res1=await fetch(API_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4096,messages:[{role:'user',content:buildContent('phase1')}]})});
     clearInterval(tm);
-    const data=await res.json();
-    if(data.error){throw new Error('API 오류: '+JSON.stringify(data.error));}
-    const raw=data.content.map(b=>b.text||'').join('');
-    console.log('=== RAW API 응답 ===');
-    console.log(raw);
-    console.log('=== stop_reason:', data.stop_reason, '===');
-    let parsed;
-    try{
-      const cleaned=raw.replace(/```json|```/g,'').trim();
-      parsed=JSON.parse(cleaned);
-    }catch(pe){
-      console.error('JSON 파싱 실패. raw응답 전체:', raw);
-      // stop_reason이 max_tokens면 토큰 부족
-      if(data.stop_reason==='max_tokens'){
-        throw new Error('응답이 잘렸습니다 (max_tokens 초과). 이미지 수를 줄이거나 채널을 하나만 사용해보세요.');
-      }
-      throw new Error('JSON 파싱 실패 — API 응답이 올바르지 않습니다');
-    }
-    curSession=parsed;
+    const d1=await res1.json();
+    if(d1.error)throw new Error('API 오류: '+JSON.stringify(d1.error));
+    const raw1=d1.content.map(b=>b.text||'').join('');
+    console.log('=== 1단계 응답 ===',raw1.substring(0,300));
+    console.log('stop_reason:',d1.stop_reason);
+    if(d1.stop_reason==='max_tokens')throw new Error('응답이 잘렸습니다 (max_tokens 초과). Vercel 프록시의 max_tokens 제한을 해제해주세요.');
+    let p1;
+    try{p1=JSON.parse(raw1.replace(/```json|```/g,'').trim());}
+    catch(e){console.error('1단계 파싱 실패:',raw1);throw new Error('JSON 파싱 실패 (1단계)');}
+
+    // 2단계: 운동 처방
+    document.getElementById('lt').textContent='운동 처방 생성 중...';
+    document.getElementById('ls').textContent='1단계 이완 · 2단계 활성화';
+    const res2=await fetch(API_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4096,messages:[{role:'user',content:buildContent('phase2',p1)}]})});
+    const d2=await res2.json();
+    if(d2.error)throw new Error('API 오류 (2단계): '+JSON.stringify(d2.error));
+    const raw2=d2.content.map(b=>b.text||'').join('');
+    console.log('=== 2단계 응답 ===',raw2.substring(0,300));
+    if(d2.stop_reason==='max_tokens')throw new Error('운동 처방 응답이 잘렸습니다. Vercel 프록시의 max_tokens 제한을 해제해주세요.');
+    let p2;
+    try{p2=JSON.parse(raw2.replace(/```json|```/g,'').trim());}
+    catch(e){console.error('2단계 파싱 실패:',raw2);throw new Error('JSON 파싱 실패 (2단계)');}
+
+    // 합치기
+    curSession={...p1,...p2};
     await saveSess(curSession);
     renderResult(curSession);
   }catch(e){
     clearInterval(tm);
-    console.error('분석 오류:', e);
-    showSub('upload');
-    setStep(1);
+    console.error('분석 오류:',e);
+    showSub('upload');setStep(1);
     document.getElementById('ana-btn').disabled=false;
     alert('분석 오류: '+e.message+'\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.');
   }
