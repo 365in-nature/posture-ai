@@ -361,10 +361,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
     <div id="pg-patient-detail" class="hidden">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-          <div>
-            <div class="sec-t" style="margin-bottom:2px" id="pd-chart"></div>
-            <div style="font-size:19px;font-weight:700" id="pd-name"></div>
-            <div style="font-size:11px;color:var(--txt2);margin-top:2px" id="pd-info"></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-sm" onclick="showSub('patients')" style="padding:8px 14px">← 목록</button>
+            <div>
+              <div class="sec-t" style="margin-bottom:2px" id="pd-chart"></div>
+              <div style="font-size:19px;font-weight:700" id="pd-name"></div>
+              <div style="font-size:11px;color:var(--txt2);margin-top:2px" id="pd-info"></div>
+            </div>
           </div>
           <button class="btn btn-sm btn-p" onclick="startSession()">+ 새 분석</button>
         </div>
@@ -769,10 +772,25 @@ function renderSessList(){
     return;
   }
   el.innerHTML=allSessions.map(s=>{
-    const badCnt=(s.findings||[]).filter(f=>f?.level==='bad').length;
-    const warnCnt=(s.findings||[]).filter(f=>f?.level==='warn').length;
-    const grade=badCnt>0?'위험':warnCnt>0?'주의':'양호';
-    const gradeColor=badCnt>0?'var(--err)':warnCnt>0?'var(--warn)':'var(--acc)';
+    // calcGrades와 동일한 로직으로 등급 계산 (문헌 기반)
+    let fhpOffset=0;
+    if(s.landmarks){
+      const ear=(s.landmarks||[]).find(l=>l.name&&l.name.includes('귓불'));
+      if(ear?.offset){const m=String(ear.offset).replace('cm','').replace('+','');fhpOffset=Math.abs(parseFloat(m)||0);}
+    }
+    let shoulderDiff=0;
+    if(s.measurements){
+      const sh=(s.measurements||[]).find(m=>m.name&&m.name.includes('어깨높이차'));
+      if(sh?.value){const m=String(sh.value).replace('cm','');shoulderDiff=Math.abs(parseFloat(m)||0);}
+    }
+    const sagBad=fhpOffset>=2.5, sagWarn=fhpOffset>=1;
+    const balBad=shoulderDiff>=1, balWarn=shoulderDiff>=0.5;
+    const isBad=sagBad||balBad;
+    const isWarn=!isBad&&(sagWarn||balWarn);
+    const grade=isBad?'위험':isWarn?'주의':'양호';
+    const gradeColor=isBad?'var(--err)':isWarn?'var(--warn)':'var(--acc)';
+    const gradeDetail=isBad?`${sagBad?'시상면':''}${sagBad&&balBad?' · ':''}${balBad?'좌우균형':''}`:
+                      isWarn?`${sagWarn?'시상면':''}${sagWarn&&balWarn?' · ':''}${balWarn?'좌우균형':''}`:'';
     const isSelected=selectedSessions.includes(s.id);
     if(compareMode){
       return`<div class="sess-row" style="cursor:pointer;${isSelected?'background:var(--info-l);border:1px solid var(--info)':''}" onclick="toggleSelectSess('${s.id}')">
@@ -788,7 +806,7 @@ function renderSessList(){
       <div style="flex:1;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="viewSess('${s.id}')">
         <span class="sess-date">${s.session_date}</span>
         <span style="font-size:15px;font-weight:700;color:${gradeColor}">${grade}</span>
-        <span style="flex:1;font-size:12px;color:var(--txt3)">${badCnt>0?`위험 ${badCnt}건`:warnCnt>0?`주의 ${warnCnt}건`:''}</span>
+        <span style="flex:1;font-size:12px;color:var(--txt3)">${gradeDetail}</span>
         <span style="font-size:16px;color:var(--txt3)">›</span>
       </div>
       <button onclick="deleteSess(event,'${s.id}')" style="margin-left:10px;width:28px;height:28px;border-radius:50%;background:var(--err-l);border:none;color:var(--err);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="삭제">✕</button>
