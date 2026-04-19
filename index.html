@@ -1040,33 +1040,47 @@ async function runMediaPipe(imgSrc){
   card.classList.remove('hidden');
   mpImg.src=imgSrc;
   await new Promise(r=>{mpImg.onload=r;mpImg.onerror=r});
-  status.textContent='Claude Vision으로 랜드마크 추정 중...';
+  status.textContent='Claude Vision으로 랜드마크 분석 중...';
   status.style.color='var(--warn-d)';
 
   try{
-    const prompt=`이 측면 전신 이미지에서 5개 해부학적 랜드마크의 위치를 찾아주세요.
-이미지는 3D 렌더링, 스캔, 또는 실제 사진일 수 있습니다. 인체 형태를 분석하여 각 포인트의 위치를 찾으세요.
+    const prompt=`당신은 정형외과 전문의입니다. 이 측면 전신 이미지를 직접 시각적으로 분석하세요.
+이미지는 3D 렌더링, 스캔, 실제 사진 중 하나일 수 있습니다.
 
-찾아야 할 5개 랜드마크:
-1. 귓불 (Ear Lobe) - 귀의 가장 아래 부분
-2. 견봉 (Acromion) - 어깨의 가장 높고 바깥쪽 끝점
-3. 대전자 (Greater Trochanter) - 고관절 바깥쪽 돌출부 (엉덩이 옆 가장 튀어나온 곳)
-4. 슬개골 (Patella) - 무릎 앞 중앙
-5. 외과 (Lateral Malleolus) - 발목 바깥쪽 복숭아뼈
+[임무 1] 임상적 시각 판단 — 편차값 측정
+이미지를 보고 5개 해부학적 랜드마크 간의 수직 정렬을 직접 판단하세요.
+견봉(어깨 끝)을 수직 기준선(0)으로 삼아, 각 포인트가 기준선 대비 얼마나 전방(+) 또는 후방(-)에 있는지 cm 단위로 추정하세요.
+인체 비율(귓불~발목 ≈ 150cm)을 이미지 높이와 비교하여 실제 cm로 환산하세요.
 
-각 랜드마크의 위치를 이미지 전체 너비/높이에 대한 비율(0.0~1.0)로 반환하세요.
-왼쪽 위가 (0,0), 오른쪽 아래가 (1,1)입니다.
-측면 사진에서 보이는 쪽(더 명확한 쪽) 기준으로 좌표를 반환하세요.
+[임무 2] 좌표 반환 — 오버레이 표시용
+각 포인트의 이미지 내 위치를 비율(0.0~1.0)로 반환하세요. 왼쪽 위=(0,0), 오른쪽 아래=(1,1).
 
-JSON만 출력 (다른 텍스트 없이):
-{"side":"left|right","ear":{"x":0.0,"y":0.0},"shoulder":{"x":0.0,"y":0.0},"hip":{"x":0.0,"y":0.0},"knee":{"x":0.0,"y":0.0},"ankle":{"x":0.0,"y":0.0}}`;
+JSON만 출력:
+{
+  "side": "left|right",
+  "clinical": {
+    "ear_offset": 0.0,
+    "shoulder_offset": 0.0,
+    "hip_offset": 0.0,
+    "knee_offset": 0.0,
+    "ankle_offset": 0.0,
+    "note": "시각적 판단 근거 한 줄"
+  },
+  "coords": {
+    "ear": {"x": 0.0, "y": 0.0},
+    "shoulder": {"x": 0.0, "y": 0.0},
+    "hip": {"x": 0.0, "y": 0.0},
+    "knee": {"x": 0.0, "y": 0.0},
+    "ankle": {"x": 0.0, "y": 0.0}
+  }
+}`;
 
     const res=await fetch(API_PROXY,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:300,
+        max_tokens:500,
         messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:files.side?.type||'image/png',data:b64.side}},
           {type:'text',text:prompt}
@@ -1075,17 +1089,28 @@ JSON만 출력 (다른 텍스트 없이):
     });
     const data=await res.json();
     const raw=data.content.map(b=>b.text||'').join('');
-    const lms=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const result=JSON.parse(raw.replace(/```json|```/g,'').trim());
 
     // 유효성 검사
+    if(!result.coords||!result.clinical)throw new Error('invalid response');
     const keys=['ear','shoulder','hip','knee','ankle'];
-    const valid=keys.every(k=>lms[k]&&typeof lms[k].x==='number'&&typeof lms[k].y==='number');
-    if(!valid)throw new Error('invalid landmarks');
+    const valid=keys.every(k=>result.coords[k]&&typeof result.coords[k].x==='number');
+    if(!valid)throw new Error('invalid coords');
 
-    mpLandmarks=lms;
-    drawCVOverlay(lms, mpImg);
-    renderCVTable(lms, mpImg);
-    status.textContent='감지 완료 ✓  (점을 드래그하여 조정 가능)';
+    // mpLandmarks에 좌표 + 임상값 모두 저장
+    mpLandmarks={
+      side: result.side||'right',
+      ear:      result.coords.ear,
+      shoulder: result.coords.shoulder,
+      hip:      result.coords.hip,
+      knee:     result.coords.knee,
+      ankle:    result.coords.ankle,
+      clinical: result.clinical  // 시각적 판단 편차값
+    };
+
+    drawCVOverlay(mpLandmarks, mpImg);
+    renderCVTable(mpLandmarks, mpImg);
+    status.textContent='분석 완료 ✓  (점을 드래그하여 조정 가능)';
     status.style.color='var(--acc-d)';
     setTimeout(()=>showDragHint(),300);
 
@@ -1173,22 +1198,16 @@ function drawCVOverlay(lms, imgEl){
 function renderCVTable(lms, imgEl){
   const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
   const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
-
-  // 귓불~외과 픽셀 거리로 px→cm 환산 (귓불~발목 ≈ 150cm)
-  const earY=lms.ear.y*dh;
-  const ankleY=lms.ankle.y*dh;
-  const pxPerCm=Math.abs(ankleY-earY)/150;
-
-  const refX=lms.shoulder.x; // 견봉 x = 기준
+  const pxPerCm=Math.abs(lms.ankle.y-lms.ear.y)*dh/150;
+  const refX=lms.shoulder.x;
   const order=['ear','shoulder','hip','knee','ankle'];
   const labels={ear:'귓불',shoulder:'견봉 (기준)',hip:'대전자',knee:'슬개골',ankle:'외과'};
+  const hasClinical=!!lms.clinical;
+
   const stMap=(k,diffCm)=>{
     const abs=Math.abs(diffCm);
     if(k==='shoulder')return{cls:'s-ok',lbl:'기준'};
-    if(k==='ear'){
-      if(abs>=2)return{cls:'s-b',lbl:'이상 (FHP)'};
-      if(abs>=1)return{cls:'s-w',lbl:'주의'};
-    }
+    if(k==='ear'){if(abs>=2)return{cls:'s-b',lbl:'FHP'};if(abs>=1)return{cls:'s-w',lbl:'주의'};}
     if(abs>=2)return{cls:'s-b',lbl:'이상'};
     if(abs>=1)return{cls:'s-w',lbl:'주의'};
     return{cls:'s-ok',lbl:'정상'};
@@ -1196,27 +1215,40 @@ function renderCVTable(lms, imgEl){
 
   const rows=order.map(k=>{
     const p=lms[k];
-    const diffPxCm=((p.x-refX)*dw/pxPerCm);
-    const diffCm=parseFloat(diffPxCm.toFixed(1));
+    let diffCm;
+    if(hasClinical&&k!=='shoulder'){
+      diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
+    }else{
+      diffCm=parseFloat(((p.x-refX)*dw/pxPerCm).toFixed(1));
+    }
     const sign=diffCm>0?'+':'';
     const st=stMap(k,diffCm);
     const valStr=k==='shoulder'?'0.0cm':sign+diffCm+'cm';
     const col=st.cls==='s-b'?'var(--err)':st.cls==='s-w'?'var(--warn)':'var(--acc)';
     return`<tr>
       <td style="font-size:14px;font-weight:600;color:var(--txt);padding:11px 12px">${labels[k]}</td>
-      <td style="font-size:14px;font-family:var(--mono);text-align:center;padding:11px;color:var(--txt2)">(${(p.x*100).toFixed(1)}%, ${(p.y*100).toFixed(1)}%)</td>
       <td style="font-size:16px;font-weight:800;font-family:var(--mono);text-align:center;padding:11px;color:${col}">${valStr}</td>
       <td style="text-align:center;padding:11px"><span class="lm-st ${st.cls}">${st.lbl}</span></td>
     </tr>`;
   }).join('');
 
+  const srcLabel=hasClinical
+    ?'Claude Vision 시각 판단값 — 드래그 후 "조정 완료"를 누르면 재계산됩니다'
+    :'의료진 수동 조정값 (좌표 기반 재계산)';
+  const srcColor=hasClinical?'var(--info-d)':'var(--acc-d)';
+  const noteHtml=hasClinical&&lms.clinical.note
+    ?`<div style="font-size:13px;color:var(--txt2);padding:10px 13px;background:var(--bg2);border-radius:8px;margin-bottom:10px;line-height:1.6"><strong style="color:var(--txt)">판단 근거:</strong> ${lms.clinical.note}</div>`:'';
+
   document.getElementById('mp-table').innerHTML=`
-  <div style="font-size:12px;color:var(--txt3);margin-bottom:8px;font-family:var(--mono)">※ 견봉 수직선 기준 · 전방(+) / 후방(-) · Claude Vision 추정값</div>
+  <div style="font-size:11px;color:${srcColor};margin-bottom:8px;font-family:var(--mono);display:flex;align-items:center;gap:6px">
+    <span style="width:8px;height:8px;border-radius:50%;background:${srcColor};display:inline-block;flex-shrink:0"></span>
+    ${srcLabel}
+  </div>
+  ${noteHtml}
   <table style="width:100%;border-collapse:collapse">
     <thead><tr>
       <th style="font-size:12px;color:var(--txt3);padding:8px 12px;text-align:left;font-weight:700;border-bottom:1px solid var(--border)">랜드마크</th>
-      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">위치(x,y)</th>
-      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">수직 편차</th>
+      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">수직 편차 (견봉 기준)</th>
       <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">판정</th>
     </tr></thead>
     <tbody>${rows}</tbody>
@@ -1289,9 +1321,11 @@ function onCanvasTouchMove(e){e.preventDefault();onCanvasMouseMove(e);}
 
 function confirmManualEdit(){
   if(!mpLandmarks)return;
+  // clinical 값 제거 → 좌표 기반 재계산으로 전환
+  delete mpLandmarks.clinical;
   renderCVTable(mpLandmarks,document.getElementById('mp-img'));
   document.getElementById('mp-edit-hint').style.display='none';
-  document.getElementById('mp-status').textContent='수동 조정 완료 ✓';
+  document.getElementById('mp-status').textContent='수동 조정 완료 ✓  (좌표 기반 재계산)';
   document.getElementById('mp-status').style.color='var(--acc-d)';
 }
 
@@ -1438,6 +1472,7 @@ function getMPDataForPrompt(){
   const dh=imgEl.offsetHeight||600;
   const pxPerCm=Math.abs(lms.ankle.y-lms.ear.y)*dh/150;
   const refX=lms.shoulder.x;
+  const hasClinical=!!lms.clinical;
   const order=[
     {k:'ear',   name:'귓불'},
     {k:'shoulder',name:'견봉'},
@@ -1446,17 +1481,25 @@ function getMPDataForPrompt(){
     {k:'ankle', name:'외과'}
   ];
   const lines=order.map(({k,name})=>{
-    const p=lms[k];
-    const diffCm=((p.x-refX)*dw/pxPerCm).toFixed(1);
+    let diffCm;
+    if(hasClinical&&k!=='shoulder'){
+      diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
+    }else{
+      const p=lms[k];
+      diffCm=parseFloat(((p.x-refX)*dw/pxPerCm).toFixed(1));
+    }
     const sign=diffCm>0?'+':'';
     return`  - ${name}: ${k==='shoulder'?'기준(0.0cm)':sign+diffCm+'cm'}`;
   }).join('\n');
 
-  return`\n=== Claude Vision 실측 랜드마크 (${lms.side==='left'?'좌측':'우측'} 기준) ===
-아래는 Claude Vision이 이미지에서 직접 측정한 수직 편차값입니다. landmarks_side의 offset에 이 값을 사용하세요:
+  const src=hasClinical?'Claude Vision 시각 판단':'의료진 수동 조정';
+  const note=hasClinical&&lms.clinical.note?`\n판단 근거: ${lms.clinical.note}`:'';
+
+  return`\n=== 랜드마크 실측값 [${src}] (${lms.side==='left'?'좌측':'우측'} 기준) ===
+견봉 수직선 기준 전방(+) / 후방(-) · 단위: cm${note}
 ${lines}
-견봉 수직선 기준 전방(+)이면 앞으로 이동, 후방(-)이면 뒤로 이동.
 귓불 +2.0cm 이상 → FHP 확진, 견봉이 대전자보다 전방 → 라운드숄더.
+이 값을 landmarks_side의 offset으로 사용하세요.
 `;
 }
 
