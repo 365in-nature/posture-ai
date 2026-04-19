@@ -1572,8 +1572,14 @@ function onCanvasMouseDown(e){
 // Claude가 이 값을 덮어쓰지 못하도록 템플릿이 아닌 실제값으로 채움
 function buildLandmarkSideJSON(){
   if(!mpLandmarks){
-    // 랜드마크 없을 때 → Claude가 이미지 보고 판단하도록 템플릿 반환
-    return`[{"name":"귓불","status":"bad","offset":"+0.0cm","note":"설명"},{"name":"견봉(어깨)","status":"ok","offset":"기준점","note":"설명"},{"name":"대전자(고관절)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"슬개골(무릎)","status":"ok","offset":"0.0cm","note":"설명"},{"name":"외과(복숭아뼈)","status":"ok","offset":"기준점","note":"설명"}]`;
+    // 랜드마크 없을 때 → Claude가 이미지 보고 판단
+    return JSON.stringify([
+      {name:"귓불",status:"bad",offset:"+0.0cm",note:"설명"},
+      {name:"견봉(어깨)",status:"ok",offset:"기준점",note:"설명"},
+      {name:"대전자(고관절)",status:"ok",offset:"0.0cm",note:"설명"},
+      {name:"슬개골(무릎)",status:"ok",offset:"0.0cm",note:"설명"},
+      {name:"외과(복숭아뼈)",status:"ok",offset:"기준점",note:"설명"}
+    ]);
   }
 
   const lms=mpLandmarks;
@@ -1599,14 +1605,17 @@ function buildLandmarkSideJSON(){
       diffCm=parseFloat(((lms[k].x-refX)*dw/pxPerCm).toFixed(1));
     }
     const sign=diffCm>0?'+':'';
-    const offset=k==='shoulder'?'기준점':k==='ankle'?'기준점':sign+diffCm+'cm';
+    const offset=(k==='shoulder'||k==='ankle')?'기준점':sign+diffCm+'cm';
     let status='ok';
-    if(k==='ear'){status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';}
-    else if(k!=='shoulder'&&k!=='ankle'){status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';}
-    const note=k==='shoulder'?'수직 기준점':k==='ankle'?'수직 기준점':
-      (Math.abs(diffCm)>=2?(diffCm>0?'전방 이동 — FHP/라운드숄더':'후방 이동'):
-       Math.abs(diffCm)>=1?(diffCm>0?'경미한 전방':'경미한 후방'):'정상 정렬');
-    return`{"name":"${name}","status":"${status}","offset":"${offset}","note":"${note}"}`;
+    if(k!=='shoulder'&&k!=='ankle'){
+      status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';
+    }
+    let note='정상 정렬';
+    if(k==='shoulder'||k==='ankle') note='수직 기준점';
+    else if(Math.abs(diffCm)>=2) note=diffCm>0?'전방 이동':'후방 이동';
+    else if(Math.abs(diffCm)>=1) note=diffCm>0?'경미한 전방':'경미한 후방';
+    // JSON.stringify로 직렬화 → 특수문자/한글 이스케이프 자동 처리
+    return JSON.stringify({name,status,offset,note});
   });
 
   return`[${items.join(',')}]`;
@@ -1735,15 +1744,25 @@ async function startAna(){
     const res=await fetch(API_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,messages:[{role:'user',content:buildContent()}]})});
     clearInterval(tm);
     const data=await res.json();
+    if(data.error){throw new Error('API 오류: '+JSON.stringify(data.error));}
     const raw=data.content.map(b=>b.text||'').join('');
-    curSession=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    let parsed;
+    try{
+      parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    }catch(pe){
+      console.error('JSON 파싱 실패. raw응답:', raw.substring(0,500));
+      throw new Error('JSON 파싱 실패 — API 응답이 올바르지 않습니다');
+    }
+    curSession=parsed;
     await saveSess(curSession);
     renderResult(curSession);
   }catch(e){
     clearInterval(tm);
-    curSession=getFallback();
-    await saveSess(curSession);
-    renderResult(curSession);
+    console.error('분석 오류:', e);
+    showSub('upload');
+    setStep(1);
+    document.getElementById('ana-btn').disabled=false;
+    alert('분석 오류: '+e.message+'\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.');
   }
 }
 
