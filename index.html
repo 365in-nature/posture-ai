@@ -6,8 +6,6 @@
 <title>Posture AI v4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -441,19 +439,35 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
       </div>
       <div id="mp-card" class="card hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-          <div class="sec-t" style="margin:0">MediaPipe 랜드마크 감지</div>
+          <div class="sec-t" style="margin:0">랜드마크 감지 — Claude Vision</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <span id="mp-status" style="font-size:12px;color:var(--txt3);font-family:var(--mono)">감지 중...</span>
+            <span id="mp-status" style="font-size:12px;color:var(--txt3);font-family:var(--mono)">분석 중...</span>
             <button class="btn btn-sm" onclick="resetMPLandmarks()" style="background:var(--warn-l);color:var(--warn-d);border-color:var(--warn)">재감지</button>
           </div>
         </div>
-        <div style="position:relative;display:inline-block;width:100%">
+        <div style="position:relative;display:inline-block;width:100%" id="mp-wrap">
           <img id="mp-img" style="width:100%;max-height:480px;object-fit:contain;display:block;border-radius:8px" alt="">
-          <canvas id="mp-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px"></canvas>
+          <canvas id="mp-canvas"
+            style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;cursor:crosshair"
+            onmousedown="onCanvasMouseDown(event)"
+            onmousemove="onCanvasMouseMove(event)"
+            onmouseup="onCanvasMouseUp(event)"
+            onmouseleave="onCanvasMouseUp(event)"
+            ontouchstart="onCanvasTouchStart(event)"
+            ontouchmove="onCanvasTouchMove(event)"
+            ontouchend="onCanvasMouseUp(event)">
+          </canvas>
         </div>
-        <div id="mp-table" style="margin-top:1rem"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:.75rem;align-items:center">
+          <span style="font-size:12px;color:var(--txt2);font-weight:500">수동 조절:</span>
+          <span style="font-size:11px;color:var(--txt3)">점을 드래그하여 위치를 조정하세요.</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button id="mp-edit-hint" class="btn btn-sm" style="background:var(--info-l);color:var(--info-d);border-color:var(--info);display:none" onclick="confirmManualEdit()">조정 완료 ✓</button>
+          </div>
+        </div>
+        <div id="mp-table" style="margin-top:.75rem"></div>
         <div class="alert-i" style="margin-top:.75rem;margin-bottom:0">
-          <strong>확인 후 분석 시작</strong> — MediaPipe가 감지한 랜드마크 좌표가 Claude 분석에 실측값으로 전달됩니다. 점 위치가 맞지 않으면 재감지를 시도하세요.
+          <strong>확인 후 분석 시작</strong> — Claude Vision이 추정한 좌표를 직접 드래그해서 수정할 수 있습니다. 조정 후 "조정 완료"를 누르면 수치 테이블이 업데이트됩니다.
         </div>
       </div>
 
@@ -1016,191 +1030,192 @@ function updateProg(){const cnt=Object.values(b64).filter(Boolean).length;docume
 function setStep(n){[1,2,3].forEach(i=>{document.getElementById('s'+i).className='step'+(i<n?' done':i===n?' active':'');if(i<3)document.getElementById('sl'+i).className='sline'+(i<n?' done':'')})}
 
 // ── AI 분석 ───────────────────────────────────────────────────
-// ── MediaPipe Pose ────────────────────────────────────────────
-let mpLandmarks=null; // 감지된 랜드마크 저장
-let mpPose=null;
-
-// MediaPipe Pose 인덱스 매핑 (33개 랜드마크 중 필요한 것)
-const MP_IDX={
-  LEFT_EAR:7, RIGHT_EAR:8,
-  LEFT_SHOULDER:11, RIGHT_SHOULDER:12,
-  LEFT_HIP:23, RIGHT_HIP:24,
-  LEFT_KNEE:25, RIGHT_KNEE:26,
-  LEFT_ANKLE:27, RIGHT_ANKLE:28
-};
-
-// 측면 사진에서 어느 방향인지 판단 (왼쪽 or 오른쪽 기준)
-// 귀가 더 잘 보이는 쪽 사용
-function getSideLandmarks(lms){
-  const lEar=lms[MP_IDX.LEFT_EAR];
-  const rEar=lms[MP_IDX.RIGHT_EAR];
-  // visibility가 높은 쪽 선택
-  const useLeft=(lEar?.visibility||0)>(rEar?.visibility||0);
-  return {
-    ear:      useLeft?lms[MP_IDX.LEFT_EAR]:lms[MP_IDX.RIGHT_EAR],
-    shoulder: useLeft?lms[MP_IDX.LEFT_SHOULDER]:lms[MP_IDX.RIGHT_SHOULDER],
-    hip:      useLeft?lms[MP_IDX.LEFT_HIP]:lms[MP_IDX.RIGHT_HIP],
-    knee:     useLeft?lms[MP_IDX.LEFT_KNEE]:lms[MP_IDX.RIGHT_KNEE],
-    ankle:    useLeft?lms[MP_IDX.LEFT_ANKLE]:lms[MP_IDX.RIGHT_ANKLE],
-    side:     useLeft?'left':'right'
-  };
-}
+// ── Claude Vision 랜드마크 추정 ──────────────────────────────
+let mpLandmarks=null; // {ear,shoulder,hip,knee,ankle} 각 {x,y} 0~1 비율
 
 async function runMediaPipe(imgSrc){
   const card=document.getElementById('mp-card');
   const status=document.getElementById('mp-status');
-  card.classList.remove('hidden');
-  status.textContent='MediaPipe 초기화 중...';
-  status.style.color='var(--warn-d)';
-
   const mpImg=document.getElementById('mp-img');
+  card.classList.remove('hidden');
   mpImg.src=imgSrc;
   await new Promise(r=>{mpImg.onload=r;mpImg.onerror=r});
+  status.textContent='Claude Vision으로 랜드마크 추정 중...';
+  status.style.color='var(--warn-d)';
 
   try{
-    if(!mpPose){
-      mpPose=new Pose({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${f}`});
-      mpPose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-    }
+    const prompt=`이 측면 전신 이미지에서 5개 해부학적 랜드마크의 위치를 찾아주세요.
+이미지는 3D 렌더링, 스캔, 또는 실제 사진일 수 있습니다. 인체 형태를 분석하여 각 포인트의 위치를 찾으세요.
 
-    status.textContent='랜드마크 감지 중...';
+찾아야 할 5개 랜드마크:
+1. 귓불 (Ear Lobe) - 귀의 가장 아래 부분
+2. 견봉 (Acromion) - 어깨의 가장 높고 바깥쪽 끝점
+3. 대전자 (Greater Trochanter) - 고관절 바깥쪽 돌출부 (엉덩이 옆 가장 튀어나온 곳)
+4. 슬개골 (Patella) - 무릎 앞 중앙
+5. 외과 (Lateral Malleolus) - 발목 바깥쪽 복숭아뼈
 
-    const results=await new Promise((resolve,reject)=>{
-      mpPose.onResults(r=>resolve(r));
-      const img=document.createElement('img');
-      img.crossOrigin='anonymous';
-      img.src=imgSrc;
-      img.onload=()=>mpPose.send({image:img}).catch(reject);
-      img.onerror=reject;
+각 랜드마크의 위치를 이미지 전체 너비/높이에 대한 비율(0.0~1.0)로 반환하세요.
+왼쪽 위가 (0,0), 오른쪽 아래가 (1,1)입니다.
+측면 사진에서 보이는 쪽(더 명확한 쪽) 기준으로 좌표를 반환하세요.
+
+JSON만 출력 (다른 텍스트 없이):
+{"side":"left|right","ear":{"x":0.0,"y":0.0},"shoulder":{"x":0.0,"y":0.0},"hip":{"x":0.0,"y":0.0},"knee":{"x":0.0,"y":0.0},"ankle":{"x":0.0,"y":0.0}}`;
+
+    const res=await fetch(API_PROXY,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:300,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:files.side?.type||'image/png',data:b64.side}},
+          {type:'text',text:prompt}
+        ]}]
+      })
     });
+    const data=await res.json();
+    const raw=data.content.map(b=>b.text||'').join('');
+    const lms=JSON.parse(raw.replace(/```json|```/g,'').trim());
 
-    if(!results.poseLandmarks||!results.poseLandmarks.length){
-      status.textContent='인체 감지 실패 — 전신이 나오는 사진을 사용하세요';
-      status.style.color='var(--err-d)';
-      return;
-    }
+    // 유효성 검사
+    const keys=['ear','shoulder','hip','knee','ankle'];
+    const valid=keys.every(k=>lms[k]&&typeof lms[k].x==='number'&&typeof lms[k].y==='number');
+    if(!valid)throw new Error('invalid landmarks');
 
-    mpLandmarks=results.poseLandmarks;
-    drawMPOverlay(results.poseLandmarks,mpImg);
-    renderMPTable(results.poseLandmarks,mpImg);
-    status.textContent='감지 완료 ✓';
+    mpLandmarks=lms;
+    drawCVOverlay(lms, mpImg);
+    renderCVTable(lms, mpImg);
+    status.textContent='감지 완료 ✓  (점을 드래그하여 조정 가능)';
     status.style.color='var(--acc-d)';
+    setTimeout(()=>showDragHint(),300);
 
   }catch(err){
-    console.error('MediaPipe error:',err);
-    status.textContent='감지 실패 — 분석은 Claude Vision만으로 진행됩니다';
+    console.error('CV landmark error:',err);
+    status.textContent='자동 감지 실패 — 아래 이미지에서 5개 포인트를 직접 클릭하세요';
     status.style.color='var(--err-d)';
     mpLandmarks=null;
+    startManualPlacement();
   }
 }
 
-function drawMPOverlay(lms,imgEl){
+function drawCVOverlay(lms, imgEl){
   const canvas=document.getElementById('mp-canvas');
-  const rect=imgEl.getBoundingClientRect();
-  // 실제 렌더링 크기에 맞게 설정
-  const dw=imgEl.offsetWidth||imgEl.naturalWidth;
-  const dh=imgEl.offsetHeight||imgEl.naturalHeight;
+  const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
   canvas.width=dw;
   canvas.height=dh;
-
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,dw,dh);
 
-  const sl=getSideLandmarks(lms);
-  const pts=[sl.ear,sl.shoulder,sl.hip,sl.knee,sl.ankle];
-  const names=['귓불','견봉','대전자','슬개골','외과'];
-  const colors=['#E24B4A','#BA7517','#1D9E75','#185FA5','#7F77DD'];
+  const order=['ear','shoulder','hip','knee','ankle'];
+  const labels={ear:'귓불',shoulder:'견봉',hip:'대전자',knee:'슬개골',ankle:'외과'};
+  const colors={ear:'#E24B4A',shoulder:'#BA7517',hip:'#1D9E75',knee:'#185FA5',ankle:'#7F77DD'};
 
-  // 수직 기준선 (견봉 x 기준)
-  if(sl.shoulder){
-    const sx=sl.shoulder.x*dw;
+  // 견봉 수직 기준선
+  const sx=lms.shoulder.x*dw;
+  ctx.beginPath();
+  ctx.setLineDash([7,5]);
+  ctx.strokeStyle='rgba(29,158,117,0.6)';
+  ctx.lineWidth=2;
+  ctx.moveTo(sx,0);
+  ctx.lineTo(sx,dh);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 수직 정렬선 (각 포인트 → 기준선까지 수평 점선)
+  order.forEach(k=>{
+    if(k==='shoulder')return;
+    const p=lms[k];
+    const px=p.x*dw, py=p.y*dh;
     ctx.beginPath();
-    ctx.setLineDash([6,4]);
-    ctx.strokeStyle='rgba(29,158,117,0.5)';
-    ctx.lineWidth=1.5;
-    ctx.moveTo(sx,0);
-    ctx.lineTo(sx,dh);
+    ctx.setLineDash([3,3]);
+    ctx.strokeStyle='rgba(255,255,255,0.3)';
+    ctx.lineWidth=1;
+    ctx.moveTo(px,py);
+    ctx.lineTo(sx,py);
     ctx.stroke();
     ctx.setLineDash([]);
-  }
+  });
 
-  // 연결선
+  // 연결선 (귓불→견봉→대전자→슬개골→외과)
   ctx.beginPath();
-  ctx.strokeStyle='rgba(255,255,255,0.7)';
-  ctx.lineWidth=2;
-  let started=false;
-  pts.forEach(p=>{
-    if(!p)return;
-    const x=p.x*dw, y=p.y*dh;
-    if(!started){ctx.moveTo(x,y);started=true;}
-    else ctx.lineTo(x,y);
+  ctx.strokeStyle='rgba(255,255,255,0.75)';
+  ctx.lineWidth=2.5;
+  order.forEach((k,i)=>{
+    const p=lms[k];
+    const px=p.x*dw, py=p.y*dh;
+    if(i===0)ctx.moveTo(px,py);
+    else ctx.lineTo(px,py);
   });
   ctx.stroke();
 
   // 포인트 + 레이블
-  pts.forEach((p,i)=>{
-    if(!p)return;
-    const x=p.x*dw, y=p.y*dh;
+  order.forEach(k=>{
+    const p=lms[k];
+    const px=p.x*dw, py=p.y*dh;
+    const col=colors[k];
     // 외곽 흰 원
-    ctx.beginPath();
-    ctx.arc(x,y,9,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,0.9)';
-    ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,11,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fill();
     // 컬러 원
-    ctx.beginPath();
-    ctx.arc(x,y,7,0,Math.PI*2);
-    ctx.fillStyle=colors[i];
-    ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();
     // 레이블
-    ctx.font='bold 11px -apple-system,sans-serif';
-    ctx.fillStyle='#fff';
-    ctx.strokeStyle=colors[i];
-    ctx.lineWidth=3;
-    const lx=x>dw*0.7?x-60:x+12;
-    ctx.strokeText(names[i],lx,y+4);
-    ctx.fillText(names[i],lx,y+4);
+    ctx.font='bold 13px -apple-system,sans-serif';
+    const lx=px>dw*0.65?px-70:px+14;
+    ctx.strokeStyle=col;ctx.lineWidth=4;
+    ctx.strokeText(labels[k],lx,py+5);
+    ctx.fillStyle='#fff';ctx.lineWidth=0;
+    ctx.fillText(labels[k],lx,py+5);
   });
 }
 
-function renderMPTable(lms,imgEl){
-  const sl=getSideLandmarks(lms);
-  const dh=imgEl.offsetHeight||imgEl.naturalHeight||480;
-  const dw=imgEl.offsetWidth||imgEl.naturalWidth||360;
+function renderCVTable(lms, imgEl){
+  const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
 
-  // 실제 신장 추정 (외과→귓불 픽셀 거리 기준, 평균 신장 170cm 가정으로 px→cm 환산)
-  const pxPerCm=sl.ear&&sl.ankle?
-    Math.abs(sl.ankle.y-sl.ear.y)*dh / 150 : // 귓불~발목 ≈ 150cm
-    dh/170;
+  // 귓불~외과 픽셀 거리로 px→cm 환산 (귓불~발목 ≈ 150cm)
+  const earY=lms.ear.y*dh;
+  const ankleY=lms.ankle.y*dh;
+  const pxPerCm=Math.abs(ankleY-earY)/150;
 
-  const pts={ear:sl.ear,shoulder:sl.shoulder,hip:sl.hip,knee:sl.knee,ankle:sl.ankle};
-  const names={ear:'귓불',shoulder:'견봉(어깨)',hip:'대전자(고관절)',knee:'슬개골(무릎)',ankle:'외과(복숭아뼈)'};
+  const refX=lms.shoulder.x; // 견봉 x = 기준
+  const order=['ear','shoulder','hip','knee','ankle'];
+  const labels={ear:'귓불',shoulder:'견봉 (기준)',hip:'대전자',knee:'슬개골',ankle:'외과'};
+  const stMap=(k,diffCm)=>{
+    const abs=Math.abs(diffCm);
+    if(k==='shoulder')return{cls:'s-ok',lbl:'기준'};
+    if(k==='ear'){
+      if(abs>=2)return{cls:'s-b',lbl:'이상 (FHP)'};
+      if(abs>=1)return{cls:'s-w',lbl:'주의'};
+    }
+    if(abs>=2)return{cls:'s-b',lbl:'이상'};
+    if(abs>=1)return{cls:'s-w',lbl:'주의'};
+    return{cls:'s-ok',lbl:'정상'};
+  };
 
-  // 수직선(견봉 x) 기준 각 포인트 편차 계산
-  const refX=sl.shoulder?.x||0.5;
-  const rows=Object.entries(pts).map(([k,p])=>{
-    if(!p)return null;
-    const diffPx=(p.x-refX)*dw;
-    const diffCm=(diffPx/pxPerCm).toFixed(1);
+  const rows=order.map(k=>{
+    const p=lms[k];
+    const diffPxCm=((p.x-refX)*dw/pxPerCm);
+    const diffCm=parseFloat(diffPxCm.toFixed(1));
     const sign=diffCm>0?'+':'';
-    let status='ok';
-    if(k==='ear'&&Math.abs(diffCm)>=2)status='bad';
-    else if(k==='ear'&&Math.abs(diffCm)>=1)status='warn';
-    else if(k!=='shoulder'&&k!=='ankle'&&Math.abs(diffCm)>=1.5)status='warn';
-    const stCls={ok:'s-ok',warn:'s-w',bad:'s-b'};
-    const stLbl={ok:'정상',warn:'주의',bad:'이상'};
+    const st=stMap(k,diffCm);
+    const valStr=k==='shoulder'?'0.0cm':sign+diffCm+'cm';
+    const col=st.cls==='s-b'?'var(--err)':st.cls==='s-w'?'var(--warn)':'var(--acc)';
     return`<tr>
-      <td style="font-size:14px;font-weight:600;color:var(--txt);padding:10px 12px">${names[k]}</td>
-      <td style="font-size:14px;font-family:var(--mono);text-align:center;padding:10px">${(p.x*100).toFixed(1)}%</td>
-      <td style="font-size:15px;font-weight:700;font-family:var(--mono);text-align:center;padding:10px;color:${status==='bad'?'var(--err)':status==='warn'?'var(--warn)':'var(--acc)'}">${k==='shoulder'?'기준':sign+diffCm+'cm'}</td>
-      <td style="text-align:center;padding:10px"><span class="lm-st ${stCls[status]}">${stLbl[status]}</span></td>
+      <td style="font-size:14px;font-weight:600;color:var(--txt);padding:11px 12px">${labels[k]}</td>
+      <td style="font-size:14px;font-family:var(--mono);text-align:center;padding:11px;color:var(--txt2)">(${(p.x*100).toFixed(1)}%, ${(p.y*100).toFixed(1)}%)</td>
+      <td style="font-size:16px;font-weight:800;font-family:var(--mono);text-align:center;padding:11px;color:${col}">${valStr}</td>
+      <td style="text-align:center;padding:11px"><span class="lm-st ${st.cls}">${st.lbl}</span></td>
     </tr>`;
-  }).filter(Boolean).join('');
+  }).join('');
 
   document.getElementById('mp-table').innerHTML=`
+  <div style="font-size:12px;color:var(--txt3);margin-bottom:8px;font-family:var(--mono)">※ 견봉 수직선 기준 · 전방(+) / 후방(-) · Claude Vision 추정값</div>
   <table style="width:100%;border-collapse:collapse">
     <thead><tr>
       <th style="font-size:12px;color:var(--txt3);padding:8px 12px;text-align:left;font-weight:700;border-bottom:1px solid var(--border)">랜드마크</th>
-      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">위치(%)</th>
+      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">위치(x,y)</th>
       <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">수직 편차</th>
       <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">판정</th>
     </tr></thead>
@@ -1210,44 +1225,238 @@ function renderMPTable(lms,imgEl){
 
 function resetMPLandmarks(){
   mpLandmarks=null;
-  mpPose=null;
-  const card=document.getElementById('mp-card');
-  card.classList.add('hidden');
-  if(b64.side){
-    const imgEl=document.getElementById('mp-img');
-    runMediaPipe(imgEl.src||'data:image/jpeg;base64,'+b64.side);
+  manualMode=false;
+  manualPoints=[];
+  document.getElementById('mp-card').classList.add('hidden');
+  document.getElementById('mp-table').innerHTML='';
+  document.getElementById('mp-edit-hint').style.display='none';
+  const ctx=document.getElementById('mp-canvas').getContext('2d');
+  ctx.clearRect(0,0,9999,9999);
+  if(b64.side) runMediaPipe('data:image/'+(files.side?.type||'image/png').split('/')[1]+';base64,'+b64.side);
+}
+
+// ── 수동 드래그 조절 ─────────────────────────────────────────
+let dragTarget=null;
+const DRAG_RADIUS=18;
+const LM_ORDER=['ear','shoulder','hip','knee','ankle'];
+
+function getCanvasPos(e,canvas){
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const clientY=e.touches?e.touches[0].clientY:e.clientY;
+  return{x:(clientX-rect.left)*scaleX,y:(clientY-rect.top)*scaleY};
+}
+
+function findNearestLandmark(pos,canvas){
+  if(!mpLandmarks)return null;
+  let nearest=null,minDist=Infinity;
+  LM_ORDER.forEach(k=>{
+    const p=mpLandmarks[k];if(!p)return;
+    const dist=Math.hypot(pos.x-p.x*canvas.width,pos.y-p.y*canvas.height);
+    if(dist<DRAG_RADIUS&&dist<minDist){minDist=dist;nearest=k;}
+  });
+  return nearest;
+}
+
+function onCanvasMouseMove(e){
+  if(!mpLandmarks&&!manualMode)return;
+  if(manualMode){
+    document.getElementById('mp-canvas').style.cursor='crosshair';
+    return;
+  }
+  const canvas=document.getElementById('mp-canvas');
+  const pos=getCanvasPos(e,canvas);
+  if(dragTarget){
+    e.preventDefault();
+    mpLandmarks[dragTarget]={
+      x:Math.max(0,Math.min(1,pos.x/canvas.width)),
+      y:Math.max(0,Math.min(1,pos.y/canvas.height))
+    };
+    drawCVOverlay(mpLandmarks,document.getElementById('mp-img'));
+  }else{
+    canvas.style.cursor=findNearestLandmark(pos,canvas)?'grab':'crosshair';
   }
 }
 
-// MediaPipe 측정값을 프롬프트에 추가하는 함수
+function onCanvasMouseUp(e){
+  if(dragTarget){dragTarget=null;document.getElementById('mp-canvas').style.cursor='crosshair';}
+}
+
+function onCanvasTouchStart(e){e.preventDefault();onCanvasMouseDown(e);}
+function onCanvasTouchMove(e){e.preventDefault();onCanvasMouseMove(e);}
+
+function confirmManualEdit(){
+  if(!mpLandmarks)return;
+  renderCVTable(mpLandmarks,document.getElementById('mp-img'));
+  document.getElementById('mp-edit-hint').style.display='none';
+  document.getElementById('mp-status').textContent='수동 조정 완료 ✓';
+  document.getElementById('mp-status').style.color='var(--acc-d)';
+}
+
+function showDragHint(){
+  if(!mpLandmarks)return;
+  const canvas=document.getElementById('mp-canvas');
+  const imgEl=document.getElementById('mp-img');
+  let t=0;
+  const pulse=setInterval(()=>{
+    if(!mpLandmarks||t>8){clearInterval(pulse);drawCVOverlay(mpLandmarks,imgEl);return;}
+    drawCVOverlay(mpLandmarks,imgEl);
+    const ctx=canvas.getContext('2d');
+    LM_ORDER.forEach(k=>{
+      const p=mpLandmarks[k];if(!p)return;
+      const px=p.x*canvas.width,py=p.y*canvas.height;
+      const alpha=Math.max(0,0.7-t*0.08);
+      const r=13+Math.sin(t*1.8)*4;
+      ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(255,255,255,${alpha})`;
+      ctx.lineWidth=2.5;ctx.stroke();
+    });
+    t++;
+  },220);
+}
+
+// ── 수동 배치 모드 ────────────────────────────────────────────
+let manualMode=false;
+let manualPoints=[]; // 클릭한 좌표 순서대로 저장 [{x,y}, ...]
+
+function startManualPlacement(){
+  manualMode=true;
+  manualPoints=[];
+  const canvas=document.getElementById('mp-canvas');
+  const imgEl=document.getElementById('mp-img');
+
+  // 캔버스 크기 맞추기
+  const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
+  canvas.width=dw;
+  canvas.height=dh;
+
+  canvas.style.cursor='crosshair';
+  drawManualGuide();
+
+  document.getElementById('mp-status').textContent=
+    `포인트 클릭 (0/5) — 아무 순서나 클릭하면 위→아래 순으로 자동 정렬됩니다`;
+  document.getElementById('mp-status').style.color='var(--info-d)';
+}
+
+function drawManualGuide(){
+  const canvas=document.getElementById('mp-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const colors=['#E24B4A','#BA7517','#1D9E75','#185FA5','#7F77DD'];
+  const labels={ear:'귓불',shoulder:'견봉',hip:'대전자',knee:'슬개골',ankle:'외과'};
+  const sortedKeys=LM_ORDER; // 정렬 후 매핑용
+
+  // 이미 찍은 포인트 그리기 (임시 — 아직 정렬 전)
+  manualPoints.forEach((p,i)=>{
+    const px=p.x*canvas.width;
+    const py=p.y*canvas.height;
+    // 임시 번호 표시
+    ctx.beginPath();ctx.arc(px,py,11,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);
+    ctx.fillStyle='rgba(100,100,100,0.8)';ctx.fill();
+    ctx.font='bold 11px -apple-system,sans-serif';
+    ctx.fillStyle='#fff';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(i+1,px,py);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  });
+
+  // 5개 완료 시 정렬된 랜드마크로 정식 표시
+  if(manualPoints.length===5){
+    // y좌표 기준 오름차순 정렬 → 위에서 아래로 ear,shoulder,hip,knee,ankle
+    const sorted=[...manualPoints].sort((a,b)=>a.y-b.y);
+    const lms={
+      side:'right',
+      ear:sorted[0],
+      shoulder:sorted[1],
+      hip:sorted[2],
+      knee:sorted[3],
+      ankle:sorted[4]
+    };
+    mpLandmarks=lms;
+    manualMode=false;
+    canvas.style.cursor='crosshair';
+    drawCVOverlay(lms,document.getElementById('mp-img'));
+    renderCVTable(lms,document.getElementById('mp-img'));
+    document.getElementById('mp-status').textContent='수동 배치 완료 ✓  (드래그로 추가 조정 가능)';
+    document.getElementById('mp-status').style.color='var(--acc-d)';
+    document.getElementById('mp-edit-hint').style.display='none';
+    return;
+  }
+
+  // 안내 오버레이 — 남은 포인트 수
+  const remaining=5-manualPoints.length;
+  const nextLabel=['귓불','견봉','대전자','슬개골','외과'][manualPoints.length];
+  ctx.font='bold 14px -apple-system,sans-serif';
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(8,8,canvas.width-16,36);
+  ctx.fillStyle='#fff';
+  ctx.textAlign='center';
+  ctx.fillText(`${manualPoints.length+1}번째 클릭 — 아무 포인트나 클릭하세요 (남은 ${remaining}개)`,canvas.width/2,30);
+  ctx.textAlign='left';
+}
+
+function onCanvasMouseDown(e){
+  if(!mpLandmarks&&!manualMode)return;
+  e.preventDefault();
+  const canvas=document.getElementById('mp-canvas');
+  const pos=getCanvasPos(e,canvas);
+
+  // 수동 배치 모드
+  if(manualMode){
+    if(manualPoints.length>=5)return;
+    manualPoints.push({x:pos.x/canvas.width,y:pos.y/canvas.height});
+    drawManualGuide();
+    const cnt=manualPoints.length;
+    if(cnt<5){
+      document.getElementById('mp-status').textContent=
+        `포인트 클릭 (${cnt}/5) — 계속 클릭하세요`;
+    }
+    return;
+  }
+
+  // 드래그 모드 (자동 감지 완료 후)
+  dragTarget=findNearestLandmark(pos,canvas);
+  if(dragTarget){
+    canvas.style.cursor='grabbing';
+    document.getElementById('mp-edit-hint').style.display='';
+  }
+}
+
+// Claude에게 넘길 실측 좌표 텍스트 생성
 function getMPDataForPrompt(){
   if(!mpLandmarks)return'';
+  const lms=mpLandmarks;
   const imgEl=document.getElementById('mp-img');
-  const dh=imgEl.offsetHeight||480;
-  const dw=imgEl.offsetWidth||360;
-  const sl=getSideLandmarks(mpLandmarks);
-  const pxPerCm=sl.ear&&sl.ankle?Math.abs(sl.ankle.y-sl.ear.y)*dh/150:dh/170;
-  const refX=sl.shoulder?.x||0.5;
-
-  const pts=[
-    {name:'귓불',p:sl.ear},
-    {name:'견봉',p:sl.shoulder},
-    {name:'대전자',p:sl.hip},
-    {name:'슬개골',p:sl.knee},
-    {name:'외과',p:sl.ankle}
+  const dw=imgEl.offsetWidth||400;
+  const dh=imgEl.offsetHeight||600;
+  const pxPerCm=Math.abs(lms.ankle.y-lms.ear.y)*dh/150;
+  const refX=lms.shoulder.x;
+  const order=[
+    {k:'ear',   name:'귓불'},
+    {k:'shoulder',name:'견봉'},
+    {k:'hip',   name:'대전자'},
+    {k:'knee',  name:'슬개골'},
+    {k:'ankle', name:'외과'}
   ];
-  const lines=pts.map(({name,p})=>{
-    if(!p)return null;
+  const lines=order.map(({k,name})=>{
+    const p=lms[k];
     const diffCm=((p.x-refX)*dw/pxPerCm).toFixed(1);
     const sign=diffCm>0?'+':'';
-    return `  - ${name}: 수직기준선 대비 ${name==='견봉'?'기준(0.0cm)':sign+diffCm+'cm'} (신뢰도 ${(p.visibility*100).toFixed(0)}%)`;
-  }).filter(Boolean).join('\n');
+    return`  - ${name}: ${k==='shoulder'?'기준(0.0cm)':sign+diffCm+'cm'}`;
+  }).join('\n');
 
-  return `\n=== MediaPipe 실측 랜드마크 좌표 (${sl.side==='left'?'좌측':'우측'} 기준) ===
-아래는 MediaPipe Pose가 실제 측정한 수직 편차값입니다. 이 값을 landmarks_side의 offset 기준으로 사용하세요:
+  return`\n=== Claude Vision 실측 랜드마크 (${lms.side==='left'?'좌측':'우측'} 기준) ===
+아래는 Claude Vision이 이미지에서 직접 측정한 수직 편차값입니다. landmarks_side의 offset에 이 값을 사용하세요:
 ${lines}
-견봉 수직선 기준 전방(+)이면 앞으로 이동, 후방(-)이면 뒤로 이동을 의미합니다.
-귓불 편차 ±2cm 이상 → FHP 확진, 견봉이 대전자보다 앞 → 라운드숄더.
+견봉 수직선 기준 전방(+)이면 앞으로 이동, 후방(-)이면 뒤로 이동.
+귓불 +2.0cm 이상 → FHP 확진, 견봉이 대전자보다 전방 → 라운드숄더.
 `;
 }
 
