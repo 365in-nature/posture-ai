@@ -1829,7 +1829,7 @@ async function saveSess(r){
     analyst:document.getElementById('u-analyst').value||null,
     height_cm:parseFloat(document.getElementById('u-height')?.value)||null,
     weight_kg:parseFloat(document.getElementById('u-weight')?.value)||null,
-    channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},scores:r.scores,findings:r.findings,landmarks:r.landmarks_side,measurements:r.measurements,contour_front:r.moire_front||[],contour_rear:r.moire_rear||[],tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
+    channels_used:{side:!!b64.side,front:!!b64.front,rear:!!b64.rear},findings:r.findings,landmarks:r.landmarks_side,landmarks_front:r.landmarks_front||[],measurements:r.measurements,contour_front:r.moire_front||[],contour_rear:r.moire_rear||[],tight_muscles:r.tight_muscles,weak_muscles:r.weak_muscles,posture_patterns:[],contraindications:r.contraindications||[],exercise_priority:r.exercise_priority||[],exercises:r.exercises,week_schedule:r.week_schedule,cross_validated_muscles:r.cross_validated_muscles||[]};
   const saved=await sbPost('sessions',body);
   curSession._sid=Array.isArray(saved)?saved[0]?.id:saved?.id;
   document.getElementById('save-status').innerHTML='<span style="font-size:11px;color:var(--acc);font-family:var(--mono)">저장됨 ✓</span>';
@@ -1841,7 +1841,7 @@ async function saveSess(r){
 async function viewSess(sid){
   const data=await sbGet('sessions',`?id=eq.${sid}`);
   const s=Array.isArray(data)?data[0]:data;if(!s)return;
-  curSession={scores:s.scores,findings:s.findings,landmarks_side:s.landmarks,measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,height_cm:s.height_cm,weight_kg:s.weight_kg,_sid:s.id};
+  curSession={findings:s.findings,landmarks_side:s.landmarks,landmarks_front:s.landmarks_front||[],measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,height_cm:s.height_cm,weight_kg:s.weight_kg,_sid:s.id};
   renderResult(curSession);showSub('result');
 }
 
