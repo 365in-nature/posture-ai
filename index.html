@@ -1125,17 +1125,17 @@ function setStep(n){[1,2,3].forEach(i=>{document.getElementById('s'+i).className
 // 성별·연령에 따라 미세하게 다르지만 0.89를 기본값으로 사용
 const EAR_ANKLE_RATIO=0.89;
 
-function getPxPerCm(lms, imgEl){
-  const dh=imgEl.offsetHeight||imgEl.naturalHeight||600;
+function getPxPerCm(lms, canvasOrImg){
+  // canvas.width/height를 우선 사용 (드래그 좌표 기준과 일치)
+  const canvas=document.getElementById('mp-canvas');
+  const dh=(canvas&&canvas.height>0)?canvas.height:(canvasOrImg.offsetHeight||canvasOrImg.naturalHeight||600);
   const heightCm=parseFloat(document.getElementById('u-height')?.value)||null;
   const earAnklePx=Math.abs(lms.ankle.y-lms.ear.y)*dh;
 
   if(heightCm&&heightCm>=50&&heightCm<=250){
-    // 실제 키로 정밀 계산
     const earAnkleCm=heightCm*EAR_ANKLE_RATIO;
     return earAnklePx/earAnkleCm;
   }else{
-    // 키 미입력 시 평균 신장(165cm) 기반
     return earAnklePx/(165*EAR_ANKLE_RATIO);
   }
 }
@@ -1327,7 +1327,8 @@ function drawCVOverlay(lms, imgEl){
 }
 
 function renderCVTable(lms, imgEl){
-  const dw=imgEl.offsetWidth||imgEl.naturalWidth||400;
+  const canvas=document.getElementById('mp-canvas');
+  const dw=(canvas&&canvas.width>0)?canvas.width:(imgEl.offsetWidth||imgEl.naturalWidth||400);
   const pxPerCm=getPxPerCm(lms,imgEl);
   const refX=lms.shoulder.x;
   const order=['ear','shoulder','hip','knee','ankle'];
@@ -1616,10 +1617,10 @@ function buildLandmarkSideJSON(){
   }
 
   const lms=mpLandmarks;
-  const imgEl=document.getElementById('mp-img');
-  const dw=imgEl.offsetWidth||400;
-  const pxPerCm=getPxPerCm(lms,imgEl);
-  const refX=lms.shoulder.x;
+  const lms=mpLandmarks;
+  const mpCvs=document.getElementById('mp-canvas');
+  const dw=(mpCvs&&mpCvs.width>0)?mpCvs.width:400;
+  const pxPerCm=getPxPerCm(lms,document.getElementById('mp-img'));
   const hasClinical=!!lms.clinical;
 
   const order=[
@@ -1657,9 +1658,9 @@ function buildLandmarkSideJSON(){
 function getMPDataForPrompt(){
   if(!mpLandmarks)return'';
   const lms=mpLandmarks;
-  const imgEl=document.getElementById('mp-img');
-  const dw=imgEl.offsetWidth||400;
-  const pxPerCm=getPxPerCm(lms,imgEl);
+  const canvas2=document.getElementById('mp-canvas');
+  const dw=(canvas2&&canvas2.width>0)?canvas2.width:400;
+  const pxPerCm=getPxPerCm(lms,document.getElementById('mp-img'));
   const refX=lms.shoulder.x;
   const hasClinical=!!lms.clinical;
   const bodyInfo=getBodyInfo();
