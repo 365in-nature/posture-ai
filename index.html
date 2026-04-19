@@ -1806,6 +1806,14 @@ async function startAna(){
 
     // 합치기
     curSession={...p1,...p2};
+    // cross_validated_muscles 자동 도출 (cross_validated===true인 근육 이름 수집)
+    if(!curSession.cross_validated_muscles?.length){
+      const cvMuscles=[
+        ...(curSession.tight_muscles||[]).filter(m=>m.cross_validated===true).map(m=>m.name),
+        ...(curSession.weak_muscles||[]).filter(m=>m.cross_validated===true).map(m=>m.name)
+      ];
+      curSession.cross_validated_muscles=[...new Set(cvMuscles)];
+    }
     await saveSess(curSession);
     renderResult(curSession);
   }catch(e){
