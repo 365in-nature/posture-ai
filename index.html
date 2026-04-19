@@ -1189,9 +1189,8 @@ function buildPrintHtml(section) {
   function hdr() {
     const pName = patientName ? `<div class="pr-patient">${patientName} 님</div>` : '';
     return `
-    <img src="data:image/png;base64,${WATERMARK_LOGO}" alt="워터마크" class="pr-wm">
-    <img src="data:image/png;base64,${CLINIC_LOGO}" alt="한의원 로고" class="pr-watermark">
     <div class="pr-hdr">
+      <div class="pr-hdr-accent"></div>
       <div class="pr-hdr-left">
         ${pName}
       </div>
@@ -1332,118 +1331,151 @@ function buildPrintHtml(section) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', sans-serif;
-      font-size: 10pt; line-height: 1.6; color: #111; background: #fff;
+      font-size: 10pt; line-height: 1.6; color: #1a1a2e; background: #fff;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      padding: 14mm 16mm 22mm 16mm;
+      padding: 14mm 14mm 22mm 14mm;
     }
 
     /* ── 헤더 ── */
-
-    /* ── 워터마크 (중앙 반투명) ── */
-    .pr-wm {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 260pt;
-      height: auto;
-      opacity: 0.07;
-      pointer-events: none;
-      z-index: 0;
+    .pr-hdr {
+      display: flex; align-items: center;
+      padding: 10pt 0 10pt;
+      margin-bottom: 16pt;
+      border-bottom: 2pt solid #1a1a2e;
+      gap: 12pt;
     }
-
-    /* ── 우측 상단 고정 로고 ── */
-    .pr-watermark {
-      position: fixed;
-      top: 10pt;
-      right: 16mm;
-      height: 36pt;
-      width: auto;
-      opacity: 1;
-      pointer-events: none;
-      z-index: 100;
+    .pr-hdr-accent {
+      width: 4pt; height: 36pt; border-radius: 2pt;
+      background: linear-gradient(180deg, #4f8ef7 0%, #8b5cf6 100%);
+      flex-shrink: 0;
     }
-    /* 로고 모든 페이지 우측 상단 고정 */
-    .pr-hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 2pt solid #111; padding-bottom: 8pt; margin-bottom: 14pt; }
-    .pr-logo { font-size: 20pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
-    .pr-logo-blue { color: #1a56a8; }
-    .pr-hdr-sub { font-size: 9pt; color: #666; margin-top: 3pt; }
-    .pr-patient { font-size: 13pt; font-weight: 700; color: #111; margin-top: 5pt; }
-    .pr-clinic-logo { display: none; }
+    .pr-hdr-left { display: flex; flex-direction: column; justify-content: center; }
+    .pr-patient { font-size: 18pt; font-weight: 800; color: #1a1a2e; letter-spacing: -0.03em; line-height: 1.1; }
+    .pr-hdr-sub { font-size: 8.5pt; color: #888; margin-top: 3pt; letter-spacing: 0.02em; }
 
     /* ── 측정 수치 ── */
-    .pr-metrics-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6pt; margin-bottom: 12pt; page-break-inside: avoid; break-inside: avoid; }
-    .pr-mc { border: 0.5pt solid #ddd; border-radius: 4pt; padding: 6pt 5pt; text-align: center; background: #fff; }
-    .pr-mc-lbl { font-size: 7.5pt; color: #555; margin-bottom: 3pt; word-break: keep-all; }
-    .pr-mc-val { font-size: 17pt; font-weight: 700; color: #111; line-height: 1.1; }
-    .pr-mc-val.alert { color: #c0392b; }
-    .pr-mc-unit { font-size: 8pt; font-weight: 400; color: #888; }
-    .pr-mc-note { font-size: 7.5pt; color: #888; margin-top: 2pt; }
-    .pr-mc-note.alert { color: #c0392b; font-weight: 600; }
+    .pr-metrics-row {
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 6pt; margin-bottom: 14pt;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-mc {
+      border-radius: 5pt; padding: 7pt 5pt; text-align: center;
+      background: #f8f9ff; border: 0.5pt solid #e4e8f5;
+    }
+    .pr-mc-lbl { font-size: 7pt; color: #777; margin-bottom: 4pt; word-break: keep-all; font-weight: 500; }
+    .pr-mc-val { font-size: 16pt; font-weight: 800; color: #1a1a2e; line-height: 1.1; }
+    .pr-mc-val.alert { color: #e53e3e; }
+    .pr-mc-unit { font-size: 7.5pt; font-weight: 400; color: #999; }
+    .pr-mc-note { font-size: 7pt; color: #999; margin-top: 2pt; }
+    .pr-mc-note.alert { color: #e53e3e; font-weight: 700; }
 
     /* ── 자세 요약 ── */
     .pr-summary {
-      border-left: 3pt solid #1a56a8;
-      background: #f7f9fc;
-      padding: 8pt 12pt;
-      font-size: 10pt; color: #222; line-height: 1.65;
-      margin-bottom: 12pt;
+      border-radius: 5pt;
+      background: #f4f6ff;
+      border-left: 3.5pt solid #4f8ef7;
+      padding: 9pt 13pt;
+      font-size: 9.5pt; color: #333; line-height: 1.7;
+      margin-bottom: 14pt;
       page-break-inside: avoid; break-inside: avoid;
     }
 
     /* ── 섹션 제목 ── */
-    .pr-section-h2 { font-size: 14pt; font-weight: 700; color: #111; border-bottom: 1.5pt solid #111; padding-bottom: 5pt; margin-bottom: 10pt; page-break-after: avoid; break-after: avoid; }
-    .pr-region-lbl { font-size: 8pt; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 10pt 0 5pt; page-break-after: avoid; break-after: avoid; }
-    .pr-divider { border: none; border-top: 0.5pt solid #ccc; margin: 14pt 0; }
+    .pr-section-h2 {
+      font-size: 12pt; font-weight: 800; color: #1a1a2e;
+      letter-spacing: -0.02em;
+      padding: 5pt 0 5pt 10pt;
+      border-left: 3.5pt solid #8b5cf6;
+      margin-bottom: 10pt;
+      page-break-after: avoid; break-after: avoid;
+    }
+    .pr-region-lbl {
+      font-size: 7.5pt; color: #888; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin: 10pt 0 5pt;
+      page-break-after: avoid; break-after: avoid;
+    }
+    .pr-divider { border: none; border-top: 0.5pt solid #e8e8f0; margin: 14pt 0; }
 
-    /* ── 근육 카드 그리드: 페이지 넘어가지 않도록 ── */
-    .pr-muscle-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5pt; margin-bottom: 8pt; page-break-inside: avoid; break-inside: avoid; }
-    .pr-mcard { border: 0.5pt solid #e0e0e0; border-radius: 3pt; padding: 7pt 9pt; background: #fff; page-break-inside: avoid; break-inside: avoid; }
-    .pr-mcard-badges { display: flex; align-items: center; gap: 5pt; margin-bottom: 4pt; }
-    .pr-bdg { font-size: 8pt; font-weight: 700; padding: 2pt 7pt; border-radius: 3pt; display: inline-block; }
-    .pr-bdg-tight { background: #fde8e5; color: #c0392b; }
-    .pr-bdg-weak  { background: #e3edf8; color: #1a56a8; }
-    .pr-bdg-star  { font-size: 9pt; color: #c0392b; font-weight: 700; }
-    .pr-mcard-name { font-size: 10pt; font-weight: 700; color: #111; margin-bottom: 3pt; }
-    .pr-mcard-desc { font-size: 8.5pt; color: #444; line-height: 1.5; }
+    /* ── 근육 카드 ── */
+    .pr-muscle-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 5pt; margin-bottom: 8pt;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-mcard {
+      border-radius: 4pt; padding: 8pt 10pt; background: #fff;
+      border: 0.5pt solid #e4e8f5;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-mcard-badges { display: flex; align-items: center; gap: 5pt; margin-bottom: 5pt; }
+    .pr-bdg { font-size: 7.5pt; font-weight: 700; padding: 2pt 7pt; border-radius: 20pt; display: inline-block; }
+    .pr-bdg-tight { background: #fff0f0; color: #e53e3e; }
+    .pr-bdg-weak  { background: #eff5ff; color: #4f8ef7; }
+    .pr-bdg-star  { font-size: 9pt; color: #e53e3e; font-weight: 700; }
+    .pr-mcard-name { font-size: 9.5pt; font-weight: 700; color: #1a1a2e; margin-bottom: 3pt; }
+    .pr-mcard-desc { font-size: 8.5pt; color: #555; line-height: 1.55; }
 
-    /* ── 운동 처방 카드 그리드: 페이지 넘어가지 않도록 ── */
-    .pr-ex-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6pt; margin-bottom: 8pt; page-break-inside: avoid; break-inside: avoid; }
-    .pr-excard { border: 0.5pt solid #e0e0e0; border-radius: 3pt; padding: 7pt 9pt; background: #fff; page-break-inside: avoid; break-inside: avoid; }
-    .pr-excard.star { border-left: 2.5pt solid #c0392b; }
-    .pr-excard-name { font-size: 10pt; font-weight: 700; color: #111; margin-bottom: 3pt; }
-    .pr-excard-tags { font-size: 8.5pt; color: #555; margin-bottom: 4pt; }
-    .pr-excard-desc { font-size: 8.5pt; color: #444; line-height: 1.5; }
+    /* ── 운동 처방 카드 ── */
+    .pr-ex-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 6pt; margin-bottom: 8pt;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-excard {
+      border-radius: 4pt; padding: 8pt 10pt; background: #fff;
+      border: 0.5pt solid #e4e8f5;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-excard.star { border-left: 3pt solid #e53e3e; }
+    .pr-excard-name { font-size: 9.5pt; font-weight: 700; color: #1a1a2e; margin-bottom: 3pt; }
+    .pr-excard-tags { font-size: 8pt; color: #777; margin-bottom: 4pt; }
+    .pr-excard-desc { font-size: 8.5pt; color: #555; line-height: 1.55; }
 
     /* ── 주간 루틴 ── */
-    .pr-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4pt; margin-bottom: 10pt; page-break-inside: avoid; break-inside: avoid; }
-    .pr-day-col { border: 0.5pt solid #ddd; border-radius: 3pt; padding: 5pt 4pt; text-align: center; background: #fff; }
-    .pr-day-name { font-size: 8pt; font-weight: 700; color: #555; margin-bottom: 4pt; }
-    .pr-day-item { font-size: 7.5pt; padding: 2pt 3pt; border-radius: 2pt; margin-bottom: 3pt; line-height: 1.3; }
-    .pr-day-item.stretch  { background: #fde8e5; color: #c0392b; }
-    .pr-day-item.strength { background: #e3edf8; color: #1a56a8; }
-    .pr-day-item.cardio   { background: #fefbe8; color: #8a6a00; }
-    .pr-day-item.rest     { background: #f0f5e8; color: #4a8a4a; }
+    .pr-week-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4pt; margin-bottom: 10pt;
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .pr-day-col {
+      border-radius: 4pt; padding: 5pt 4pt; text-align: center;
+      background: #f8f9ff; border: 0.5pt solid #e4e8f5;
+    }
+    .pr-day-name { font-size: 8pt; font-weight: 700; color: #666; margin-bottom: 4pt; }
+    .pr-day-item { font-size: 7.5pt; padding: 2pt 3pt; border-radius: 3pt; margin-bottom: 3pt; line-height: 1.3; }
+    .pr-day-item.stretch  { background: #fff0f0; color: #e53e3e; }
+    .pr-day-item.strength { background: #eff5ff; color: #4f8ef7; }
+    .pr-day-item.cardio   { background: #fffbf0; color: #b7791f; }
+    .pr-day-item.rest     { background: #f0faf5; color: #38a169; }
 
     /* ── 12주 단계 테이블 ── */
     .pr-phase-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid; }
-    .pr-phase-table th { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 5pt 8pt; border-bottom: 1pt solid #ddd; text-align: left; }
-    .pr-phase-table td { padding: 7pt 8pt; border-bottom: 0.5pt solid #eee; color: #333; vertical-align: top; background: #fff; }
-    .pr-phase-badge { font-size: 8.5pt; font-weight: 700; padding: 2pt 9pt; border-radius: 3pt; display: inline-block; }
-    .pr-phase-badge.ph1 { background: #f5ede0; color: #8a5a00; }
-    .pr-phase-badge.ph2 { background: #e0ecf5; color: #1a56a8; }
-    .pr-phase-badge.ph3 { background: #e0f5e8; color: #1a7a3a; }
+    .pr-phase-table th {
+      font-size: 7.5pt; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #888;
+      padding: 6pt 8pt; background: #f8f9ff;
+      border-bottom: 1pt solid #e4e8f5; text-align: left;
+    }
+    .pr-phase-table td { padding: 7pt 8pt; border-bottom: 0.5pt solid #f0f0f8; color: #333; vertical-align: top; }
+    .pr-phase-badge { font-size: 8pt; font-weight: 700; padding: 2pt 9pt; border-radius: 20pt; display: inline-block; }
+    .pr-phase-badge.ph1 { background: #fff7e6; color: #b7791f; }
+    .pr-phase-badge.ph2 { background: #eff5ff; color: #4f8ef7; }
+    .pr-phase-badge.ph3 { background: #f0faf5; color: #38a169; }
 
-    /* ── 푸터 & 페이지 번호 ── */
-    .pr-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 5pt 16mm; border-top: 0.5pt solid #ccc; font-size: 8pt; color: #aaa; display: flex; justify-content: space-between; background: #fff; }
-
-    /* ── @page 마진: 인쇄 여백을 body padding으로 제어 ── */
-    @page { size: A4 portrait; margin: 14mm 16mm 22mm 16mm; }
+    /* ── 푸터 ── */
+    .pr-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 5pt 14mm;
+      border-top: 0.5pt solid #e8e8f0;
+      font-size: 8pt; color: #bbb;
+      display: flex; justify-content: space-between;
+      background: #fff;
+    }
 
     /* ── 페이지 나누기 ── */
     .pr-page-break { page-break-before: always; break-before: page; }
-
-    /* ── 지역별 운동 블록이 페이지 걸치지 않도록 ── */
     .pr-region-block { page-break-inside: avoid; break-inside: avoid; }
   `;
 
@@ -1499,7 +1531,7 @@ async function exportPdf(section) {
 
     styleEl.textContent = `
       @media print {
-        @page { size: A4 portrait; margin: 8mm 16mm 10mm 16mm; }
+        @page { size: A4 portrait; margin: 0; }
 
         /* 안내 배너 포함 현재 페이지 모든 요소 숨김 */
         body > * { display: none !important; }
@@ -1510,25 +1542,11 @@ async function exportPdf(section) {
           position: static !important;
           width: 100%;
           background: #fff;
-          padding-top: 25mm !important;
-        }
-
-        /* 로고 워터마크 — 각 페이지 중앙에 반복 */
-        #_print_container::before {
-          content: '';
-          position: fixed;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%);
-          width: 480pt; height: 153pt;
-          background: url('data:image/png;base64,${LOGO_B64}') center/contain no-repeat;
-          opacity: 0.07;
-          pointer-events: none;
-          z-index: 0;
         }
 
         ${printCSS}
 
-        /* body 스타일 재정의: 마진은 @page가 처리 */
+        /* body 스타일 재정의 */
         body { margin: 0 !important; padding: 0 !important; }
 
         /* 첫 페이지 헤더 잘림 방지 */
@@ -1550,8 +1568,8 @@ async function exportPdf(section) {
         .pr-footer {
           position: fixed;
           bottom: 0; left: 0; right: 0;
-          padding: 4pt 16mm;
-          border-top: 0.5pt solid #ccc;
+          padding: 4pt 14mm;
+          border-top: 0.5pt solid #e8e8f0;
           background: #fff;
         }
       }
