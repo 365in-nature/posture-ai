@@ -1617,10 +1617,10 @@ function buildLandmarkSideJSON(){
   }
 
   const lms=mpLandmarks;
-  const lms=mpLandmarks;
   const mpCvs=document.getElementById('mp-canvas');
   const dw=(mpCvs&&mpCvs.width>0)?mpCvs.width:400;
   const pxPerCm=getPxPerCm(lms,document.getElementById('mp-img'));
+  const refX=lms.shoulder.x;
   const hasClinical=!!lms.clinical;
 
   const order=[
