@@ -1180,8 +1180,8 @@ async function runMediaPipe(imgSrc){
 
 [임무 1] 임상적 시각 판단 — 편차값 측정
 이미지를 보고 5개 해부학적 랜드마크 간의 수직 정렬을 직접 판단하세요.
-견봉(어깨 끝)을 수직 기준선(0)으로 삼아, 각 포인트가 기준선 대비 얼마나 전방(+) 또는 후방(-)에 있는지 cm 단위로 추정하세요.
-인체 비율(귓불~발목 ≈ 150cm)을 이미지 높이와 비교하여 실제 cm로 환산하세요.
+외과(복숭아뼈, lateral malleolus)를 수직 기준선(0)으로 삼아, 각 포인트가 기준선 대비 얼마나 전방(+) 또는 후방(-)에 있는지 cm 단위로 추정하세요.
+인체 비율(귓불~외과 ≈ 150cm)을 이미지 높이와 비교하여 실제 cm로 환산하세요.
 
 [임무 2] 좌표 반환 — 오버레이 표시용
 각 포인트의 이미지 내 위치를 비율(0.0~1.0)로 반환하세요. 왼쪽 위=(0,0), 오른쪽 아래=(1,1).
@@ -1267,11 +1267,11 @@ function drawCVOverlay(lms, imgEl){
   const labels={ear:'귓불',shoulder:'견봉',hip:'대전자',knee:'슬개골',ankle:'외과'};
   const colors={ear:'#E24B4A',shoulder:'#BA7517',hip:'#1D9E75',knee:'#185FA5',ankle:'#7F77DD'};
 
-  // 견봉 수직 기준선
-  const sx=lms.shoulder.x*dw;
+  // 외과 수직 기준선
+  const sx=lms.ankle.x*dw;
   ctx.beginPath();
   ctx.setLineDash([7,5]);
-  ctx.strokeStyle='rgba(29,158,117,0.6)';
+  ctx.strokeStyle='rgba(127,119,221,0.7)';
   ctx.lineWidth=2;
   ctx.moveTo(sx,0);
   ctx.lineTo(sx,dh);
@@ -1280,7 +1280,7 @@ function drawCVOverlay(lms, imgEl){
 
   // 수직 정렬선 (각 포인트 → 기준선까지 수평 점선)
   order.forEach(k=>{
-    if(k==='shoulder')return;
+    if(k==='ankle')return;
     const p=lms[k];
     const px=p.x*dw, py=p.y*dh;
     ctx.beginPath();
@@ -1330,15 +1330,16 @@ function renderCVTable(lms, imgEl){
   const canvas=document.getElementById('mp-canvas');
   const dw=(canvas&&canvas.width>0)?canvas.width:(imgEl.offsetWidth||imgEl.naturalWidth||400);
   const pxPerCm=getPxPerCm(lms,imgEl);
-  const refX=lms.shoulder.x;
+  const refX=lms.ankle.x;
   const order=['ear','shoulder','hip','knee','ankle'];
-  const labels={ear:'귓불',shoulder:'견봉 (기준)',hip:'대전자',knee:'슬개골',ankle:'외과'};
+  const labels={ear:'귓불',shoulder:'견봉',hip:'대전자',knee:'슬개골',ankle:'외과 (기준)'};
   const hasClinical=!!lms.clinical;
 
   const stMap=(k,diffCm)=>{
     const abs=Math.abs(diffCm);
-    if(k==='shoulder')return{cls:'s-ok',lbl:'기준'};
+    if(k==='ankle')return{cls:'s-ok',lbl:'기준'};
     if(k==='ear'){if(abs>=2)return{cls:'s-b',lbl:'FHP'};if(abs>=1)return{cls:'s-w',lbl:'주의'};}
+    if(k==='shoulder'){if(abs>=2.5)return{cls:'s-b',lbl:'이상'};if(abs>=1)return{cls:'s-w',lbl:'주의'};}
     if(abs>=2)return{cls:'s-b',lbl:'이상'};
     if(abs>=1)return{cls:'s-w',lbl:'주의'};
     return{cls:'s-ok',lbl:'정상'};
@@ -1347,14 +1348,14 @@ function renderCVTable(lms, imgEl){
   const rows=order.map(k=>{
     const p=lms[k];
     let diffCm;
-    if(hasClinical&&k!=='shoulder'){
+    if(hasClinical&&k!=='ankle'){
       diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
     }else{
       diffCm=parseFloat(((p.x-refX)*dw/pxPerCm).toFixed(1));
     }
     const sign=diffCm>0?'+':'';
     const st=stMap(k,diffCm);
-    const valStr=k==='shoulder'?'0.0cm':sign+diffCm+'cm';
+    const valStr=k==='ankle'?'0.0cm (기준)':sign+diffCm+'cm';
     const col=st.cls==='s-b'?'var(--err)':st.cls==='s-w'?'var(--warn)':'var(--acc)';
     return`<tr>
       <td style="font-size:14px;font-weight:600;color:var(--txt);padding:11px 12px">${labels[k]}</td>
@@ -1379,7 +1380,7 @@ function renderCVTable(lms, imgEl){
   <table style="width:100%;border-collapse:collapse">
     <thead><tr>
       <th style="font-size:12px;color:var(--txt3);padding:8px 12px;text-align:left;font-weight:700;border-bottom:1px solid var(--border)">랜드마크</th>
-      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">수직 편차 (견봉 기준)</th>
+      <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">수직 편차 (외과 기준)</th>
       <th style="font-size:12px;color:var(--txt3);padding:8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border)">판정</th>
     </tr></thead>
     <tbody>${rows}</tbody>
@@ -1606,10 +1607,9 @@ function onCanvasMouseDown(e){
 // Claude가 이 값을 덮어쓰지 못하도록 템플릿이 아닌 실제값으로 채움
 function buildLandmarkSideJSON(){
   if(!mpLandmarks){
-    // 랜드마크 없을 때 → Claude가 이미지 보고 판단
     return JSON.stringify([
       {name:"귓불",status:"bad",offset:"+0.0cm",note:"설명"},
-      {name:"견봉(어깨)",status:"ok",offset:"기준점",note:"설명"},
+      {name:"견봉(어깨)",status:"ok",offset:"0.0cm",note:"설명"},
       {name:"대전자(고관절)",status:"ok",offset:"0.0cm",note:"설명"},
       {name:"슬개골(무릎)",status:"ok",offset:"0.0cm",note:"설명"},
       {name:"외과(복숭아뼈)",status:"ok",offset:"기준점",note:"설명"}
@@ -1620,7 +1620,7 @@ function buildLandmarkSideJSON(){
   const mpCvs=document.getElementById('mp-canvas');
   const dw=(mpCvs&&mpCvs.width>0)?mpCvs.width:400;
   const pxPerCm=getPxPerCm(lms,document.getElementById('mp-img'));
-  const refX=lms.shoulder.x;
+  const refX=lms.ankle.x;
   const hasClinical=!!lms.clinical;
 
   const order=[
@@ -1633,22 +1633,23 @@ function buildLandmarkSideJSON(){
 
   const items=order.map(({k,name})=>{
     let diffCm;
-    if(hasClinical&&k!=='shoulder'){
+    if(hasClinical&&k!=='ankle'){
       diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
     }else{
       diffCm=parseFloat(((lms[k].x-refX)*dw/pxPerCm).toFixed(1));
     }
     const sign=diffCm>0?'+':'';
-    const offset=(k==='shoulder'||k==='ankle')?'기준점':sign+diffCm+'cm';
+    const offset=k==='ankle'?'기준점':sign+diffCm+'cm';
     let status='ok';
-    if(k!=='shoulder'&&k!=='ankle'){
-      status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';
+    if(k!=='ankle'){
+      if(k==='ear') status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';
+      else if(k==='shoulder') status=Math.abs(diffCm)>=2.5?'bad':Math.abs(diffCm)>=1?'warn':'ok';
+      else status=Math.abs(diffCm)>=2?'bad':Math.abs(diffCm)>=1?'warn':'ok';
     }
     let note='정상 정렬';
-    if(k==='shoulder'||k==='ankle') note='수직 기준점';
+    if(k==='ankle') note='수직 기준점';
     else if(Math.abs(diffCm)>=2) note=diffCm>0?'전방 이동':'후방 이동';
     else if(Math.abs(diffCm)>=1) note=diffCm>0?'경미한 전방':'경미한 후방';
-    // JSON.stringify로 직렬화 → 특수문자/한글 이스케이프 자동 처리
     return JSON.stringify({name,status,offset,note});
   });
 
@@ -1661,7 +1662,7 @@ function getMPDataForPrompt(){
   const canvas2=document.getElementById('mp-canvas');
   const dw=(canvas2&&canvas2.width>0)?canvas2.width:400;
   const pxPerCm=getPxPerCm(lms,document.getElementById('mp-img'));
-  const refX=lms.shoulder.x;
+  const refX=lms.ankle.x;
   const hasClinical=!!lms.clinical;
   const bodyInfo=getBodyInfo();
 
@@ -1674,14 +1675,14 @@ function getMPDataForPrompt(){
   ];
   const lines=order.map(({k,name})=>{
     let diffCm;
-    if(hasClinical&&k!=='shoulder'){
+    if(hasClinical&&k!=='ankle'){
       diffCm=parseFloat((lms.clinical[k+'_offset']||0).toFixed(1));
     }else{
       const p=lms[k];
       diffCm=parseFloat(((p.x-refX)*dw/pxPerCm).toFixed(1));
     }
     const sign=diffCm>0?'+':'';
-    return`  - ${name}: ${k==='shoulder'?'기준(0.0cm)':sign+diffCm+'cm'}`;
+    return`  - ${name}: ${k==='ankle'?'기준(0.0cm)':sign+diffCm+'cm'}`;
   }).join('\n');
 
   const src=hasClinical?'Claude Vision 시각 판단':'의료진 수동 조정';
@@ -1695,9 +1696,9 @@ function getMPDataForPrompt(){
     :'';
 
   return`\n=== 랜드마크 실측값 [${src}] (${lms.side==='left'?'좌측':'우측'} 기준) ===${note}${heightNote}
-견봉 수직선 기준 전방(+) / 후방(-) · 단위: cm
+외과(복숭아뼈) 수직선 기준 전방(+) / 후방(-) · 단위: cm
 ${lines}
-귓불 +2.0cm 이상 → FHP 확진, 견봉이 대전자보다 전방 → 라운드숄더.
+귓불 +2.0cm 이상 → FHP 확진, 견봉이 외과보다 전방 → 라운드숄더·전방경사.
 이 값을 landmarks_side의 offset으로 사용하세요.
 ${bodyStr}
 `;
@@ -1739,12 +1740,14 @@ JSON만 출력:
 ${bodyStr}${mpData}
 === 채널1: 측면 일반 사진 ${hs?'(입력됨)':'(없음 — 해당 항목 추정값 사용)'} ===
 5개 랜드마크 수직 정렬: 귓불→견봉→대전자→슬개골→외과
-- 귓불이 견봉보다 2cm 이상 앞 → 전방두부자세(FHP)
-- 견봉이 대전자보다 앞 → 라운드숄더
+기준점: 외과(복숭아뼈) — 전방(+)/후방(-) cm로 표기
+- 귓불이 외과보다 2cm 이상 앞 → 전방두부자세(FHP)
+- 견봉이 외과보다 전방 → 라운드숄더·전방경사
+- 대전자가 외과와 수직 정렬 → 정상 골반
 - 흉추 과후만 → 흉추신전근 약화
 - 허리 전만 증가 + 복부 돌출 → 장요근·요추기립근 단축
 - 허리 전만 감소 → 햄스트링·복직근 단축
-${mpData?'⚠️ landmarks_side의 offset은 위에서 제공한 실측값을 그대로 사용하고 절대 변경하지 마세요.':''}
+${mpData?'⚠️ landmarks_side의 offset은 위에서 제공한 실측값(외과 기준)을 그대로 사용하고 절대 변경하지 마세요.':''}
 
 === 채널2: 정면 모아레 사진 ${hf?'(입력됨)':'(없음 — 해당 항목 null)'} ===
 모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다.
@@ -1856,7 +1859,15 @@ async function saveSess(r){
 async function viewSess(sid){
   const data=await sbGet('sessions',`?id=eq.${sid}`);
   const s=Array.isArray(data)?data[0]:data;if(!s)return;
-  curSession={findings:s.findings,landmarks_side:s.landmarks,landmarks_front:s.landmarks_front||[],measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles,contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,height_cm:s.height_cm,weight_kg:s.weight_kg,_sid:s.id};
+  curSession={findings:s.findings,landmarks_side:s.landmarks,landmarks_front:s.landmarks_front||[],measurements:s.measurements,moire_front:s.contour_front,moire_rear:s.contour_rear,tight_muscles:s.tight_muscles,weak_muscles:s.weak_muscles,cross_validated_muscles:s.cross_validated_muscles||[],contraindications:s.contraindications,exercise_priority:s.exercise_priority,exercises:s.exercises,week_schedule:s.week_schedule,session_date:s.session_date,analyst:s.analyst,height_cm:s.height_cm,weight_kg:s.weight_kg,_sid:s.id};
+  // cross_validated_muscles가 비어있으면 tight/weak_muscles에서 자동 도출
+  if(!curSession.cross_validated_muscles?.length){
+    const cvMuscles=[
+      ...(curSession.tight_muscles||[]).filter(m=>m.cross_validated===true).map(m=>m.name),
+      ...(curSession.weak_muscles||[]).filter(m=>m.cross_validated===true).map(m=>m.name)
+    ];
+    curSession.cross_validated_muscles=[...new Set(cvMuscles)];
+  }
   renderResult(curSession);showSub('result');
 }
 
@@ -1957,9 +1968,11 @@ function renderResult(r){
   renderMoire(r.moire_front,'cnt-f');renderMoire(r.moire_rear,'cnt-r');
   const crossEl=document.getElementById('cross-box');
   if(r.cross_validated_muscles?.length){
+    crossEl.style.display='block';
     crossEl.className='cross-box';
-    crossEl.innerHTML=`<div class="cross-t">3채널 교차검증 핵심 근육</div>${r.cross_validated_muscles.map(m=>`<div style="font-size:13px;color:var(--err-d);padding:3px 0">▸ ${m}</div>`).join('')}`;
+    crossEl.innerHTML=`<div class="cross-t">3채널 교차검증 핵심 근육</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${r.cross_validated_muscles.map(m=>`<span style="font-size:13px;font-weight:700;color:var(--err-d);padding:3px 12px;background:#fff;border-radius:20px;border:1px solid var(--err)">${m}</span>`).join('')}</div>`;
   }else{
+    crossEl.style.display='none';
     crossEl.className='';
     crossEl.innerHTML='';
   }
