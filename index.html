@@ -2085,7 +2085,7 @@ function normalizeStatus(s){
   if(v==='warn'||v==='warning'||v==='caution')return'warn';
   return'ok';
 }
-function spill(s){const ns=normalizeStatus(s);return`<span class="spill ${stCls[ns]}">${stLbl[ns]}</span>`}
+function spill(s){const ns=normalizeStatus(s);return`<span class="spill ${stCls[ns]}" style="font-size:11px;padding:3px 9px">${stLbl[ns]}</span>`}
 
 function openPDF(){
   if(!curSession||!curPatient){alert('분석 결과가 없습니다.');return}
@@ -2105,9 +2105,9 @@ function buildPDFPages(){
   const bmiStr=hCm&&wKg?' · BMI '+(wKg/((hCm/100)**2)).toFixed(1):'';
   const bodyLine=hCm||wKg?`<br>${hCm?hCm+'cm':'—'} / ${wKg?wKg+'kg':'—'}${bmiStr}`:'';
   const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}${bodyLine}</div></div></div>`;
-  const miniHdr=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;font-weight:700">${esc(p.name)} · ${esc(p.chart_no)}</span><span style="font-size:9px;color:var(--txt3)">${r.session_date||now}</span></div>`;
+  const miniHdr=(pg,total)=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid var(--border)"><span style="font-size:13px;font-weight:700">${esc(p.name)} · <span style="color:var(--txt3);font-family:var(--mono)">${esc(p.chart_no)}</span></span><span style="font-size:11px;color:var(--txt3)">${r.session_date||now} &nbsp;·&nbsp; ${pg} / ${total}</span></div>`;
 
-  // 촬영 이미지 소스 결정: 신규분석=b64, 저장세션=storage URL
+  // 이미지 소스
   const sid=r._sid||'';
   const pid=p.id||'';
   const imgSrc={
@@ -2115,63 +2115,263 @@ function buildPDFPages(){
     front: b64.front ? `data:image/jpeg;base64,${b64.front}` : (sid?`${SB_URL}/storage/v1/object/public/posture-images/${pid}/${sid}_front.jpg`:''),
     rear: b64.rear ? `data:image/jpeg;base64,${b64.rear}` : (sid?`${SB_URL}/storage/v1/object/public/posture-images/${pid}/${sid}_rear.jpg`:'')
   };
-  const imgLabels={side:'측면',front:'정면 모아레',rear:'후면 모아레'};
-  const imgSection=`<div class="psec"><div class="psec-t">촬영 이미지</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-      ${['side','front','rear'].map(ch=>imgSrc[ch]
-        ?`<div style="text-align:center">
-            <div style="font-size:8px;color:var(--txt2);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">${imgLabels[ch]}</div>
-            <img src="${imgSrc[ch]}" style="width:100%;height:160px;object-fit:cover;border-radius:6px;border:0.5px solid var(--border)" crossorigin="anonymous">
-          </div>`
-        :`<div style="height:160px;background:var(--bg2);border-radius:6px;display:flex;align-items:center;justify-content:center;border:0.5px dashed var(--border2)">
-            <span style="font-size:9px;color:var(--txt3)">${imgLabels[ch]}<br>미입력</span>
-          </div>`
-      ).join('')}
+
+  // 공통 섹션 타이틀
+  const st=(t)=>`<div style="font-size:11px;font-weight:700;color:var(--txt2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px"><span style="width:4px;height:14px;background:var(--acc);border-radius:2px;display:inline-block;flex-shrink:0"></span>${t}</div>`;
+
+  const TOTAL=5;
+
+  // ── 페이지 1: 표지 — 등급 + 주요 소견 ──────────────────────
+  const pg=calcGrades(r);
+  const pg1=`<div class="pdf-page">
+  ${hdr}
+  <div style="margin-bottom:22px">
+    ${st('체형 분석 등급')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div style="background:var(--bg2);border-radius:10px;padding:18px;text-align:center">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:600">시상면 정렬 (Hansraj 2014)</div>
+        <div style="font-size:26px;font-weight:800;color:${pg.sagColor}">${pg.sagGrade}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:5px">${pg.sagRef}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:10px;padding:18px;text-align:center">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:600">좌우 균형 (Kendall 2005)</div>
+        <div style="font-size:26px;font-weight:800;color:${pg.balColor}">${pg.balGrade}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:5px">${pg.balRef}</div>
+      </div>
     </div>
+  </div>
+  <div style="margin-bottom:22px">
+    ${st('주요 소견')}
+    ${(r.findings||[]).filter(f=>f&&f.level&&f.text).map(f=>{
+      const lvl=f.level||'good';
+      const bg=lvl==='bad'?'var(--err-l)':lvl==='warn'?'var(--warn-l)':'var(--acc-l)';
+      const ic=lvl==='bad'?'var(--err-d)':lvl==='warn'?'var(--warn-d)':'var(--acc-d)';
+      return`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;background:${bg};margin-bottom:7px;line-height:1.7">
+        <div style="width:18px;height:18px;border-radius:50%;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:2px">${icons[lvl]||'•'}</div>
+        <div style="font-size:13px;color:var(--txt2);flex:1">${f.text}${srcTag(f.source)}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>1 / ${TOTAL}</span></div>
   </div>`;
 
-  // 페이지 1
-  const pg=calcGrades(r);
-  let pg1=`<div class="pdf-page">
-  ${hdr}
-  <div class="psec"><div class="psec-t">체형 분석 등급</div>
-    <div class="pdf-score-row" style="grid-template-columns:1fr 1fr">
-      <div class="pdf-score-c"><div class="pdf-score-l">시상면 정렬 (Hansraj 2014)</div><div class="pdf-score-v" style="color:${pg.sagColor};font-size:18px">${pg.sagGrade}</div><div style="font-size:9px;color:var(--txt3);margin-top:3px">${pg.sagRef}</div></div>
-      <div class="pdf-score-c"><div class="pdf-score-l">좌우 균형 (Kendall 2005)</div><div class="pdf-score-v" style="color:${pg.balColor};font-size:18px">${pg.balGrade}</div><div style="font-size:9px;color:var(--txt3);margin-top:3px">${pg.balRef}</div></div>
+  // ── 페이지 2: 촬영 이미지 ───────────────────────────────────
+  const imgLabels={side:'측면 (Side View)',front:'정면 모아레 (Front Moiré)',rear:'후면 모아레 (Rear Moiré)'};
+  const pg2=`<div class="pdf-page">
+  ${miniHdr(2,TOTAL)}
+  ${st('촬영 이미지 — 3채널')}
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px">
+    ${['side','front','rear'].map(ch=>imgSrc[ch]
+      ?`<div>
+          <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-align:center">${imgLabels[ch]}</div>
+          <img src="${imgSrc[ch]}" style="width:100%;height:580px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block" crossorigin="anonymous">
+        </div>`
+      :`<div>
+          <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-align:center">${imgLabels[ch]}</div>
+          <div style="height:580px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center">
+            <span style="font-size:13px;color:var(--txt3);text-align:center">미입력</span>
+          </div>
+        </div>`
+    ).join('')}
+  </div>
+  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>2 / ${TOTAL}</span></div>
+  </div>`;
+
+  // ── 페이지 3: 랜드마크 + 수치 측정 ─────────────────────────
+  const pg3=`<div class="pdf-page">
+  ${miniHdr(3,TOTAL)}
+  <div style="margin-bottom:24px">
+    ${st('측면 — 랜드마크 수직 정렬 (외과 기준)')}
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">랜드마크</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">편차</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">소견</th>
+      </tr></thead>
+      <tbody>${(r.landmarks_side||[]).filter(l=>l&&l.name).map(l=>{
+        const lst=normalizeStatus(l.status);
+        return`<tr>
+          <td style="font-size:13px;font-weight:700;color:var(--txt);padding:10px">${esc(l.name)}</td>
+          <td style="font-size:14px;font-weight:800;font-family:monospace;text-align:center;padding:10px;color:${dotC[lst]}">${esc(l.offset||'—')}</td>
+          <td style="text-align:center;padding:10px">${spill(lst)}</td>
+          <td style="font-size:12px;color:var(--txt2);padding:10px">${esc(l.note||'')}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>
+  <div style="margin-bottom:24px">
+    ${st('정면 — 두부·경추 정렬')}
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">항목</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">측정값</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">소견</th>
+      </tr></thead>
+      <tbody>${(r.landmarks_front||[]).filter(l=>l&&l.name).map(l=>{
+        const lft=normalizeStatus(l.status);
+        const val=(l.offset||l.asymmetry_pct||'—')+(l.direction&&l.direction!=='none'?' ('+(l.direction==='left'?'좌':'우')+')':'');
+        return`<tr>
+          <td style="font-size:13px;font-weight:700;color:var(--txt);padding:10px">${esc(l.name)}</td>
+          <td style="font-size:14px;font-weight:800;font-family:monospace;text-align:center;padding:10px;color:${dotC[lft]}">${val}</td>
+          <td style="text-align:center;padding:10px">${spill(lft)}</td>
+          <td style="font-size:12px;color:var(--txt2);padding:10px">${esc(l.note||'')}</td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="4" style="font-size:12px;color:var(--txt3);text-align:center;padding:14px">정면 채널 미입력</td></tr>'}</tbody>
+    </table>
+  </div>
+  <div>
+    ${st('수치 측정표')}
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">항목</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">측정값</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">정상범위</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">채널</th>
+        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">임상의미</th>
+      </tr></thead>
+      <tbody>${(r.measurements||[]).filter(m=>m&&m.name).map(m=>{
+        const mst=normalizeStatus(m.status);
+        return`<tr>
+          <td style="font-size:13px;font-weight:700;color:var(--txt);padding:10px">${esc(m.name)}</td>
+          <td style="font-size:14px;font-weight:800;font-family:monospace;text-align:center;padding:10px;color:${dotC[mst]}">${esc(m.value||'—')}</td>
+          <td style="font-size:12px;color:var(--txt3);text-align:center;padding:10px">${esc(m.normal||'—')}</td>
+          <td style="text-align:center;padding:10px">${spill(mst)}</td>
+          <td style="text-align:center;padding:10px">${m.source?`<span class="stag" style="font-size:10px;padding:2px 7px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'}">${chLbl[m.source]||m.source}</span>`:''}</td>
+          <td style="font-size:12px;color:var(--txt2);padding:10px">${esc(m.meaning||'')}</td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="6" style="font-size:12px;color:var(--txt3);text-align:center;padding:14px">측정값 없음</td></tr>'}</tbody>
+    </table>
+  </div>
+  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>3 / ${TOTAL}</span></div>
+  </div>`;
+
+  // ── 페이지 4: 모아레 + 근육 ─────────────────────────────────
+  const mPattern={'dense':'등고선 밀집','shifted':'등고선 편위','gap':'등고선 끊김','bulge':'등고선 돌출','symmetric':'좌우 대칭'};
+  const mPatCol={'dense':'var(--err)','shifted':'var(--warn)','gap':'var(--info)','bulge':'var(--warn)','symmetric':'var(--acc)'};
+  const mImpl={'tight':'과긴장','weak':'약화','ok':'정상'};
+  const mImplBg={'tight':'var(--err-l)','weak':'var(--warn-l)','ok':'var(--acc-l)'};
+  const mImplC={'tight':'var(--err-d)','weak':'var(--warn-d)','ok':'var(--acc-d)'};
+
+  const renderMoireItems=(arr)=>(arr||[]).map(c=>{
+    const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';
+    const pl=mPattern[c.pattern]||c.pattern;
+    const pc=mPatCol[c.pattern]||'var(--txt2)';
+    const ib=mImplBg[c.implication]||'var(--bg2)';
+    const ic=mImplC[c.implication]||'var(--txt2)';
+    const il=mImpl[c.implication]||c.implication;
+    return`<div style="padding:10px 12px;background:var(--bg2);border-radius:8px;margin-bottom:7px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${pc};flex-shrink:0"></div>
+        <span style="font-size:13px;font-weight:700;color:var(--txt)">${esc(c.zone)}</span>
+        <span style="font-size:11px;color:var(--txt3)">${side}</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${ib};color:${ic};font-weight:700">${il}</span>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:${pc};margin-bottom:3px">${pl}</div>
+      <div style="font-size:12px;color:var(--txt2);line-height:1.6">${esc(c.finding)}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:3px">→ ${esc(c.muscle)}</div>
+    </div>`;
+  }).join('')||`<div style="font-size:12px;color:var(--txt3);padding:10px">미입력 채널</div>`;
+
+  const cvNames=(r.cross_validated_muscles||[]).map(m=>typeof m==='string'?m:(m?.name||'')).filter(Boolean);
+  const cvBox=cvNames.length?`<div style="background:var(--err-l);border:1px solid var(--err);border-radius:10px;padding:14px 16px;margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--err-d);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">3채널 교차검증 핵심 교정 근육</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${cvNames.map(m=>`<span style="font-size:13px;font-weight:700;color:var(--err-d);padding:4px 14px;background:#fff;border-radius:20px;border:1px solid var(--err)">${esc(m)}</span>`).join('')}</div>
+  </div>`:'';
+
+  const renderMuscleItems=(arr,type)=>(arr||[]).map(m=>{
+    const cv=m.cross_validated===true?`<span style="font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;background:var(--err-l);color:var(--err-d);margin-top:4px;display:inline-block">3채널</span>`:m.cross_validated==='partial'?`<span style="font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;background:var(--warn-l);color:var(--warn-d);margin-top:4px;display:inline-block">2채널</span>`:'';
+    const chs=(m.evidence_channels||[]).map(c=>`<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:3px;font-weight:700">${chLbl[c]||c}</span>`).join('');
+    const barC=type==='tight'?'var(--err)':'var(--warn)';
+    const tagBg=type==='tight'?'var(--err-l)':'var(--warn-l)';
+    const tagC=type==='tight'?'var(--err-d)':'var(--warn-d)';
+    return`<div style="background:var(--bg2);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--txt)">${esc(m.name)}</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${tagBg};color:${tagC}">${type==='tight'?'과긴장':'약화'}</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;margin-bottom:8px">
+        <div style="height:5px;border-radius:3px;background:${barC};width:${m.level||0}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:5px">${esc(m.desc)}</div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${cv}${chs}</div>
+    </div>`;
+  }).join('');
+
+  const pg4=`<div class="pdf-page">
+  ${miniHdr(4,TOTAL)}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:22px">
+    <div>
+      ${st('정면 모아레 — 등고선 분석')}
+      ${renderMoireItems(r.moire_front)}
+    </div>
+    <div>
+      ${st('후면 모아레 — 척추·견갑·골반')}
+      ${renderMoireItems(r.moire_rear)}
     </div>
   </div>
-  ${imgSection}
-  <div class="psec"><div class="psec-t">주요 소견</div>${(r.findings||[]).filter(f=>f&&f.level&&f.text).map(f=>{const lvl=f.level||"good";return`<div class="pdf-finding"><div class="pdf-fi fi-${lvl[0]}">${icons[lvl]||"•"}</div><div style="color:var(--txt2);font-size:10px">${f.text}${srcTag(f.source)}</div></div>`}).join('')}</div>
-  <div class="psec"><div class="psec-t">측면 — 랜드마크 수직 정렬</div><table class="pdf-lm-tbl"><thead><tr><th>랜드마크</th><th>편차</th><th>판정</th><th>소견</th></tr></thead><tbody>${(r.landmarks_side||[]).filter(l=>l&&l.name).map(l=>{const lst=normalizeStatus(l.status);return`<tr><td style="font-weight:700;color:var(--txt)">${esc(l.name)}</td><td style="font-family:monospace;font-weight:700;color:${dotC[lst]}">${esc(l.offset||"—")}</td><td>${spill(lst)}</td><td>${esc(l.note||"")}</td></tr>`}).join('')}</tbody></table></div>
-  <div class="psec"><div class="psec-t">정면 — 두부·경추 정렬</div><table class="pdf-lm-tbl"><thead><tr><th>항목</th><th>측정값</th><th>판정</th><th>소견</th></tr></thead><tbody>${(r.landmarks_front||[]).filter(l=>l&&l.name).map(l=>{const lft=normalizeStatus(l.status);const val=(l.offset||l.asymmetry_pct||"—")+(l.direction&&l.direction!=="none"?" ("+(l.direction==="left"?"좌":"우")+")":"");return`<tr><td style="font-weight:700;color:var(--txt)">${esc(l.name)}</td><td style="font-family:monospace;font-weight:700;color:${dotC[lft]}">${val}</td><td>${spill(lft)}</td><td>${esc(l.note||"")}</td></tr>`}).join('')||'<tr><td colspan="4" style="font-size:10px;color:var(--txt3);text-align:center;padding:10px">정면 채널 미입력</td></tr>'}</tbody></table></div>
-  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>1 / 3</span></div></div>`;
-
-  // 페이지 2
-  let pg2=`<div class="pdf-page">
-  ${miniHdr}
-  <div class="psec"><div class="psec-t">수치 측정표</div><table class="pdf-lm-tbl"><thead><tr><th>항목</th><th>측정값</th><th>정상범위</th><th>판정</th><th>채널</th><th>임상의미</th></tr></thead><tbody>${(r.measurements||[]).filter(m=>m&&m.name).map(m=>{const mst=normalizeStatus(m.status);return`<tr><td style="font-weight:700;color:var(--txt)">${esc(m.name)}</td><td style="font-family:monospace;font-weight:700">${esc(m.value||"—")}</td><td style="color:var(--txt3)">${esc(m.normal||"—")}</td><td>${spill(mst)}</td><td>${m.source?`<span class="stag" style="background:${chBg[m.source]||"#E1F5EE"};color:${chTxt[m.source]||"#085041"}">${chLbl[m.source]||m.source}</span>`:""}</td><td>${esc(m.meaning||"")}</td></tr>`}).join("")||'<tr><td colspan="6" style="font-size:10px;color:var(--txt3);text-align:center;padding:10px">측정값 없음</td></tr>'}</tbody></table></div>
-  <div class="psec"><div class="psec-t">정면 모아레 — 등고선 분석</div>
-    <div class="pdf-cnt-grid">${(r.moire_front||[]).map(c=>{const pl={'dense':'밀집','shifted':'편위','gap':'끊김','bulge':'돌출','symmetric':'대칭'}[c.pattern]||c.pattern;const ic={'tight':'#791F1F','weak':'#633806','ok':'#085041'}[c.implication]||'#5f5e5a';const ib={'tight':'#FCEBEB','weak':'#FAEEDA','ok':'#E1F5EE'}[c.implication]||'#f7f7f5';const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';return`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${'dense'===c.pattern?'#E24B4A':'shifted'===c.pattern?'#BA7517':'gap'===c.pattern?'#185FA5':'bulge'===c.pattern?'#BA7517':'#1D9E75'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${side}</span> <span style="font-size:8px;padding:1px 5px;border-radius:10px;background:${ib};color:${ic};font-weight:700">${{'tight':'과긴장','weak':'약화','ok':'정상'}[c.implication]||c.implication}</span></div><div style="font-size:9px;font-weight:600;margin-top:1px">${pl}</div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`}).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}
+  ${cvBox}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div>
+      ${st('과긴장 근육')}
+      ${renderMuscleItems(r.tight_muscles,'tight')}
+    </div>
+    <div>
+      ${st('약화된 근육')}
+      ${renderMuscleItems(r.weak_muscles,'weak')}
     </div>
   </div>
-  <div class="psec"><div class="psec-t">후면 모아레 — 척추·견갑·골반 분석</div>
-    <div class="pdf-cnt-grid">${(r.moire_rear||[]).map(c=>{const pl={'dense':'밀집','shifted':'편위','gap':'끊김','bulge':'돌출','symmetric':'대칭'}[c.pattern]||c.pattern;const ic={'tight':'#791F1F','weak':'#633806','ok':'#085041'}[c.implication]||'#5f5e5a';const ib={'tight':'#FCEBEB','weak':'#FAEEDA','ok':'#E1F5EE'}[c.implication]||'#f7f7f5';const side=c.side==='left'?'(좌)':c.side==='right'?'(우)':'(양측)';return`<div class="pdf-cnt-item"><div class="pdf-cnt-dot" style="background:${'dense'===c.pattern?'#E24B4A':'shifted'===c.pattern?'#BA7517':'gap'===c.pattern?'#185FA5':'bulge'===c.pattern?'#BA7517':'#1D9E75'}"></div><div><div style="font-weight:700;font-size:10px">${esc(c.zone)} <span style="font-size:8px;color:var(--txt3)">${side}</span> <span style="font-size:8px;padding:1px 5px;border-radius:10px;background:${ib};color:${ic};font-weight:700">${{'tight':'과긴장','weak':'약화','ok':'정상'}[c.implication]||c.implication}</span></div><div style="font-size:9px;font-weight:600;margin-top:1px">${pl}</div><div style="font-size:9px;color:var(--txt2);margin-top:1px">${esc(c.finding)}</div><div style="font-size:8px;color:var(--txt3)">→ ${esc(c.muscle)}</div></div></div>`}).join('')||'<div style="font-size:10px;color:var(--txt3)">미입력 채널</div>'}
+  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>4 / ${TOTAL}</span></div>
+  </div>`;
+
+  // ── 페이지 5: 운동 처방 ──────────────────────────────────────
+  const dayStatusC={'on':'var(--acc)','rest':'var(--border)','light':'var(--warn)'};
+  const dayStatusL={'on':'운동','rest':'휴식','light':'가벼운 활동'};
+  const dayStatusTxt={'on':'var(--acc-d)','rest':'var(--txt3)','light':'var(--warn-d)'};
+
+  const pg5=`<div class="pdf-page">
+  ${miniHdr(5,TOTAL)}
+  ${r.exercise_priority?.length?`<div style="margin-bottom:22px">
+    ${st('세션 처방 순서')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${r.exercise_priority.map(ph=>`<div style="border-radius:10px;padding:14px 16px;background:${ph.phase===1?'var(--err-l)':'var(--acc-l)'};border-left:4px solid ${ph.phase===1?'var(--err)':'var(--acc)'}">
+        <div style="font-size:13px;font-weight:700;color:${ph.phase===1?'var(--err-d)':'var(--acc-d)'};margin-bottom:8px">${esc(ph.label)}</div>
+        ${(ph.items||[]).map(i=>`<div style="font-size:12px;color:${ph.phase===1?'var(--err-d)':'var(--acc-d)'};padding:2px 0">· ${esc(i)}</div>`).join('')}
+      </div>`).join('')}
+    </div>
+  </div>`:''}
+  <div style="margin-bottom:22px">
+    ${st('주간 운동 계획')}
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+      ${(r.week_schedule||[]).map((d,i)=>`<div style="background:var(--bg2);border-radius:8px;padding:12px 4px;text-align:center">
+        <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px">${days[i]}</div>
+        <div style="width:12px;height:12px;border-radius:50%;margin:0 auto 6px;background:${dayStatusC[d]||'var(--border)'}"></div>
+        <div style="font-size:10px;font-weight:600;color:${dayStatusTxt[d]||'var(--txt3)'}">${dayStatusL[d]||d}</div>
+      </div>`).join('')}
     </div>
   </div>
-  ${r.cross_validated_muscles?.length?`<div class="pdf-cross"><div style="font-size:9px;font-weight:700;color:var(--err-d);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">3채널 교차검증 핵심 교정 근육</div><div style="display:flex;gap:5px;flex-wrap:wrap">${r.cross_validated_muscles.map(m=>`<span style="font-size:10px;font-weight:700;color:var(--err-d);padding:2px 9px;background:#fff;border-radius:20px;border:0.5px solid var(--err)">${esc(m)}</span>`).join('')}</div></div>`:''}
-  <div class="psec"><div class="psec-t">과긴장 근육</div><div class="pdf-mg">${(r.tight_muscles||[]).map(m=>{const cv=m.cross_validated===true?'<span class="spill s-b" style="font-size:8px">3채널</span>':m.cross_validated==='partial'?'<span class="spill s-w" style="font-size:8px">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span class="stag" style="background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px">${chLbl[c]||c}</span>`).join('');return`<div class="pdf-mc"><div class="pdf-mc-hd"><span style="font-size:11px;font-weight:700;color:var(--txt)">${esc(m.name)}</span><span class="mtag t-tight">과긴장</span></div><div class="pdf-bar-bg"><div class="pdf-bar-fill" style="width:${m.level||0}%;background:var(--err)"></div></div><div style="font-size:9px;color:var(--txt2);line-height:1.4">${esc(m.desc)}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}</div></div>
-  <div class="psec"><div class="psec-t">약화된 근육</div><div class="pdf-mg">${(r.weak_muscles||[]).map(m=>{const cv=m.cross_validated===true?'<span class="spill s-b" style="font-size:8px">3채널</span>':m.cross_validated==='partial'?'<span class="spill s-w" style="font-size:8px">2채널</span>':'';const chs=(m.evidence_channels||[]).map(c=>`<span class="stag" style="background:${chBg[c]||'#E1F5EE'};color:${chTxt[c]||'#085041'};margin-right:2px">${chLbl[c]||c}</span>`).join('');return`<div class="pdf-mc"><div class="pdf-mc-hd"><span style="font-size:11px;font-weight:700;color:var(--txt)">${esc(m.name)}</span><span class="mtag t-weak">약화</span></div><div class="pdf-bar-bg"><div class="pdf-bar-fill" style="width:${m.level||0}%;background:var(--warn)"></div></div><div style="font-size:9px;color:var(--txt2);line-height:1.4">${esc(m.desc)}</div>${cv}<div style="margin-top:3px">${chs}</div></div>`}).join('')}</div></div>
-  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>2 / 3</span></div></div>`;
+  <div>
+    ${st('처방 운동 목록')}
+    ${(r.exercises||[]).map((e,i)=>`<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${e.phase===1?'var(--err-l)':'var(--acc-l)'};color:${e.phase===1?'var(--err-d)':'var(--acc-d)'};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:monospace">${String(i+1).padStart(2,'0')}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">${esc(e.name)}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px">${esc(e.category)} &nbsp;·&nbsp; ${esc(e.sets)}</div>
+        </div>
+        <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;background:${e.phase===1?'var(--err-l)':'var(--acc-l)'};color:${e.phase===1?'var(--err-d)':'var(--acc-d)'};white-space:nowrap">${e.phase||1}단계</span>
+      </div>
+      ${e.target_muscles?.length?`<div style="font-size:11px;color:var(--warn-d);background:var(--warn-l);padding:4px 10px;border-radius:6px;margin-bottom:7px;display:inline-block">타겟: ${e.target_muscles.join(', ')}</div>`:''}
+      <div style="font-size:12px;color:var(--acc-d);background:var(--acc-l);padding:6px 10px;border-radius:6px;margin-bottom:8px">${esc(e.purpose)}</div>
+      <ol style="padding-left:18px;margin:0">${(e.steps||[]).map(s=>`<li style="font-size:12px;color:var(--txt2);padding:2px 0;line-height:1.6">${esc(s)}</li>`).join('')}</ol>
+    </div>`).join('')}
+  </div>
+  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>5 / ${TOTAL}</span></div>
+  </div>`;
 
-  // 페이지 3
-  let pg3=`<div class="pdf-page">
-  ${miniHdr}
-  ${r.exercise_priority?.length?`<div class="psec"><div class="psec-t">세션 처방 순서</div><div class="pdf-phase-grid">${r.exercise_priority.map(ph=>`<div class="pdf-phase-c ${ph.phase===1?'phase1':'phase2'}"><div class="phase-t ${ph.phase===1?'p1':'p2'}">${esc(ph.label)}</div>${(ph.items||[]).map(i=>`<div style="font-size:10px;color:${ph.phase===1?'var(--err-d)':'var(--acc-d)'};padding:1px 0">· ${esc(i)}</div>`).join('')}</div>`).join('')}</div></div>`:''}
-  <div class="psec"><div class="psec-t">주간 운동 계획</div><div class="pdf-week">${(r.week_schedule||[]).map((d,i)=>`<div class="pdf-day-c"><div class="pdf-day-nm">${days[i]}</div><div class="pdf-day-d dot-${d}"></div></div>`).join('')}</div></div>
-  <div class="psec"><div class="psec-t">처방 운동 목록</div><table class="pdf-ex-tbl"><thead><tr><th>#</th><th>운동명</th><th>단계</th><th>분류</th><th>세트</th><th>동작 순서</th></tr></thead><tbody>${(r.exercises||[]).map((e,i)=>`<tr><td style="color:var(--txt3);font-weight:700;font-family:monospace">${String(i+1).padStart(2,'0')}</td><td><div style="font-weight:700;color:var(--txt);font-size:10px">${esc(e.name)}</div>${e.target_muscles?.length?`<div style="font-size:8px;color:var(--txt3);margin-top:1px">타겟: ${e.target_muscles.join(', ')}</div>`:''}<div style="font-size:9px;color:var(--acc-d);margin-top:1px">${esc(e.purpose)}</div></td><td><span style="font-size:8px;padding:2px 5px;border-radius:8px;font-weight:700;background:${e.phase===1?'var(--err-l)':'var(--acc-l)'};color:${e.phase===1?'var(--err-d)':'var(--acc-d)'}">${e.phase||1}단계</span></td><td style="font-size:9px;color:var(--txt2)">${esc(e.category)}</td><td style="font-family:monospace;font-size:9px;white-space:nowrap">${esc(e.sets)}</td><td><ol style="padding-left:12px;font-size:9px;color:var(--txt3)">${(e.steps||[]).map(s=>`<li style="margin-bottom:1px">${esc(s)}</li>`).join('')}</ol></td></tr>`).join('')}</tbody></table></div>
-  <div class="pdf-footer"><span>Posture AI v4 · ${now}</span><span>${esc(p.chart_no)} ${esc(p.name)}</span><span>3 / 3</span></div></div>`;
-
-  document.getElementById('pdf-pages').innerHTML=pg1+pg2+pg3;
+  document.getElementById('pdf-pages').innerHTML=pg1+pg2+pg3+pg4+pg5;
 }
 
 async function downloadPDF(){
