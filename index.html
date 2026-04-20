@@ -2107,6 +2107,29 @@ function buildPDFPages(){
   const hdr=`<div class="pdf-header"><div class="pdf-h-left"><div class="clinic">Posture AI Analysis Report</div><h2>체형 분석 리포트</h2><div class="psub">3채널 실측 교차검증 · 분석일: ${r.session_date||now}</div></div><div class="pdf-h-right"><div class="pname">${esc(p.name)}</div><div class="pmeta">차트번호: ${esc(p.chart_no)}<br>${p.birth_date||''} ${p.gender==='M'?'남성':p.gender==='F'?'여성':''}${bodyLine}</div></div></div>`;
   const miniHdr=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;font-weight:700">${esc(p.name)} · ${esc(p.chart_no)}</span><span style="font-size:9px;color:var(--txt3)">${r.session_date||now}</span></div>`;
 
+  // 촬영 이미지 소스 결정: 신규분석=b64, 저장세션=storage URL
+  const sid=r._sid||'';
+  const pid=p.id||'';
+  const imgSrc={
+    side: b64.side ? `data:image/jpeg;base64,${b64.side}` : (sid?`${SB_URL}/storage/v1/object/public/posture-images/${pid}/${sid}_side.jpg`:''),
+    front: b64.front ? `data:image/jpeg;base64,${b64.front}` : (sid?`${SB_URL}/storage/v1/object/public/posture-images/${pid}/${sid}_front.jpg`:''),
+    rear: b64.rear ? `data:image/jpeg;base64,${b64.rear}` : (sid?`${SB_URL}/storage/v1/object/public/posture-images/${pid}/${sid}_rear.jpg`:'')
+  };
+  const imgLabels={side:'측면',front:'정면 모아레',rear:'후면 모아레'};
+  const imgSection=`<div class="psec"><div class="psec-t">촬영 이미지</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      ${['side','front','rear'].map(ch=>imgSrc[ch]
+        ?`<div style="text-align:center">
+            <div style="font-size:8px;color:var(--txt2);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">${imgLabels[ch]}</div>
+            <img src="${imgSrc[ch]}" style="width:100%;height:160px;object-fit:cover;border-radius:6px;border:0.5px solid var(--border)" crossorigin="anonymous">
+          </div>`
+        :`<div style="height:160px;background:var(--bg2);border-radius:6px;display:flex;align-items:center;justify-content:center;border:0.5px dashed var(--border2)">
+            <span style="font-size:9px;color:var(--txt3)">${imgLabels[ch]}<br>미입력</span>
+          </div>`
+      ).join('')}
+    </div>
+  </div>`;
+
   // 페이지 1
   const pg=calcGrades(r);
   let pg1=`<div class="pdf-page">
@@ -2117,6 +2140,7 @@ function buildPDFPages(){
       <div class="pdf-score-c"><div class="pdf-score-l">좌우 균형 (Kendall 2005)</div><div class="pdf-score-v" style="color:${pg.balColor};font-size:18px">${pg.balGrade}</div><div style="font-size:9px;color:var(--txt3);margin-top:3px">${pg.balRef}</div></div>
     </div>
   </div>
+  ${imgSection}
   <div class="psec"><div class="psec-t">주요 소견</div>${(r.findings||[]).filter(f=>f&&f.level&&f.text).map(f=>{const lvl=f.level||"good";return`<div class="pdf-finding"><div class="pdf-fi fi-${lvl[0]}">${icons[lvl]||"•"}</div><div style="color:var(--txt2);font-size:10px">${f.text}${srcTag(f.source)}</div></div>`}).join('')}</div>
   <div class="psec"><div class="psec-t">측면 — 랜드마크 수직 정렬</div><table class="pdf-lm-tbl"><thead><tr><th>랜드마크</th><th>편차</th><th>판정</th><th>소견</th></tr></thead><tbody>${(r.landmarks_side||[]).filter(l=>l&&l.name).map(l=>{const lst=normalizeStatus(l.status);return`<tr><td style="font-weight:700;color:var(--txt)">${esc(l.name)}</td><td style="font-family:monospace;font-weight:700;color:${dotC[lst]}">${esc(l.offset||"—")}</td><td>${spill(lst)}</td><td>${esc(l.note||"")}</td></tr>`}).join('')}</tbody></table></div>
   <div class="psec"><div class="psec-t">정면 — 두부·경추 정렬</div><table class="pdf-lm-tbl"><thead><tr><th>항목</th><th>측정값</th><th>판정</th><th>소견</th></tr></thead><tbody>${(r.landmarks_front||[]).filter(l=>l&&l.name).map(l=>{const lft=normalizeStatus(l.status);const val=(l.offset||l.asymmetry_pct||"—")+(l.direction&&l.direction!=="none"?" ("+(l.direction==="left"?"좌":"우")+")":"");return`<tr><td style="font-weight:700;color:var(--txt)">${esc(l.name)}</td><td style="font-family:monospace;font-weight:700;color:${dotC[lft]}">${val}</td><td>${spill(lft)}</td><td>${esc(l.note||"")}</td></tr>`}).join('')||'<tr><td colspan="4" style="font-size:10px;color:var(--txt3);text-align:center;padding:10px">정면 채널 미입력</td></tr>'}</tbody></table></div>
