@@ -228,7 +228,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(-
 }
 
 /* PDF 페이지 스타일 */
-.pdf-page{width:794px;min-height:1122px;background:#fff;padding:40px 48px;margin-bottom:16px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR','Apple SD Gothic Neo',sans-serif;box-sizing:border-box;overflow:hidden}
+.pdf-page{width:794px;min-height:1122px;background:#fff;padding:40px 48px;margin-bottom:16px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR','Apple SD Gothic Neo',sans-serif;box-sizing:border-box}
 .pdf-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--acc)}
 .pdf-h-left .clinic{font-size:10px;font-weight:700;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
 .pdf-h-left h2{font-size:20px;font-weight:800;color:var(--txt)}
@@ -1956,19 +1956,39 @@ function calcGrades(r){
   else if(fhpOffset<2.5){sagGrade='주의';sagRef='귓불 편차 '+fhpOffset.toFixed(1)+'cm (기준 1~2.5cm)';sagColor='var(--warn)';}
   else{sagGrade='위험';sagRef='귓불 편차 '+fhpOffset.toFixed(1)+'cm ↑ (FHP, 기준 ≥2.5cm)';sagColor='var(--err)';}
 
-  // 좌우균형: 어깨높이차 기준 (Kendall 2005)
-  let shoulderDiff=0;
-  if(r.measurements){
-    const sh=r.measurements.find(m=>m.name&&m.name.includes('어깨높이차'));
-    if(sh&&sh.value){
-      const m=String(sh.value).replace('cm','');
-      shoulderDiff=Math.abs(parseFloat(m)||0);
+  // 좌우균형: 확정 등급 → ai_grade → value 순으로 참조 (Kendall 2005 기반)
+  let balGrade,balRef,balColor;
+  const savedGradesForCalc=r._measurement_grades||{};
+  const shMeas=r.measurements?.find(m=>m.name&&m.name.includes('어깨높이차'));
+  const shConfirmed=savedGradesForCalc['어깨높이차']||'';
+  const shAiGrade=shMeas?.ai_grade||'';
+  const shGrade=shConfirmed||shAiGrade;
+
+  if(shGrade){
+    // 등급 직접 매핑
+    const gradeMap={
+      '정상':{grade:'정상',ref:'어깨높이차 정상',color:'var(--acc)'},
+      '경도':{grade:'주의',ref:'어깨높이차 경도 비대칭',color:'var(--warn)'},
+      '중등도':{grade:'위험',ref:'어깨높이차 중등도 비대칭',color:'var(--err)'},
+      '심함':{grade:'위험',ref:'어깨높이차 심한 비대칭',color:'var(--err)'}
+    };
+    const mapped=gradeMap[shGrade]||{grade:'정상',ref:'',color:'var(--acc)'};
+    const src=shConfirmed?'확정':'AI추정';
+    balGrade=mapped.grade;
+    balRef=`${mapped.ref} (${src}: ${shGrade})`;
+    balColor=mapped.color;
+  }else{
+    // 폴백: value에서 숫자 추출 시도
+    let shoulderDiff=0;
+    if(shMeas?.value){
+      const numMatch=String(shMeas.value).match(/[\d.]+/);
+      shoulderDiff=numMatch?Math.abs(parseFloat(numMatch[0])||0):0;
+    }
+    balGrade='정상';balRef='어깨높이차 미확정';balColor='var(--txt3)';
+    if(shoulderDiff>0){
+      balGrade='주의';balRef=`어깨높이차 ${shoulderDiff} (등급 미확정)`;balColor='var(--warn)';
     }
   }
-  let balGrade,balRef,balColor;
-  if(shoulderDiff<0.5){balGrade='정상';balRef='어깨높이차 '+shoulderDiff.toFixed(1)+'cm (기준 <0.5cm)';balColor='var(--acc)';}
-  else if(shoulderDiff<1){balGrade='주의';balRef='어깨높이차 '+shoulderDiff.toFixed(1)+'cm (기준 0.5~1cm)';balColor='var(--warn)';}
-  else{balGrade='위험';balRef='어깨높이차 '+shoulderDiff.toFixed(1)+'cm ↑ (기준 ≥1cm)';balColor='var(--err)';}
 
   return{sagGrade,sagRef,sagColor,balGrade,balRef,balColor};
 }
@@ -2016,16 +2036,19 @@ function renderResult(r){
       methodBadge.style.cssText='font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:8px;background:var(--bg2);color:var(--txt3)';
     }
   }
-  const gradeColors={정상:{bg:'var(--acc-l)',c:'var(--acc-d)'},경도:{bg:'var(--warn-l)',c:'var(--warn-d)'},중등도:{bg:'var(--err-l)',c:'var(--err-d)'},심함:{bg:'var(--err)',c:'#fff'}};
+  const gradeColors={정상:{bg:'var(--acc-l)',c:'var(--acc-d)',val:'var(--acc)'},경도:{bg:'var(--warn-l)',c:'var(--warn-d)',val:'var(--warn)'},중등도:{bg:'var(--err-l)',c:'var(--err-d)',val:'var(--err)'},심함:{bg:'var(--err)',c:'#fff',val:'var(--err-d)'}};
   const savedGrades=r._measurement_grades||{};
   document.getElementById('meas-grid').innerHTML=(r.measurements||[]).filter(m=>m&&m.name).map(m=>{
-    const st=normalizeStatus(m.status);
-    const src=m.source?`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'};margin-left:3px;font-family:var(--mono)">${chLbl[m.source]||m.source}</span>`:'';
-    const aiGrade=m.ai_grade||'';
     const confirmedGrade=savedGrades[m.name]||'';
+    const aiGrade=m.ai_grade||'';
     const displayGrade=confirmedGrade||aiGrade;
-    const gradeTag=displayGrade?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;background:${(gradeColors[displayGrade]||gradeColors['정상']).bg};color:${(gradeColors[displayGrade]||gradeColors['정상']).c};margin-top:4px;display:inline-block">${confirmedGrade?'✓ '+confirmedGrade:'AI: '+aiGrade}</span>`:'';
-    return`<div class="meas-c"><div class="meas-nm">${m.name}${src}</div><div style="display:flex;align-items:baseline;gap:5px"><span class="meas-v" style="font-size:16px">${m.value||'—'}</span><span class="lm-st ${stCls[st]}" style="font-size:8px">${stLbl[st]}</span></div><div class="meas-r">기준 ${m.normal||'—'}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${m.meaning||''}</div>${gradeTag}</div>`;
+    const gc=gradeColors[displayGrade]||null;
+    // 확정 등급 있으면 그 색, 없으면 status 기반 색
+    const st=normalizeStatus(m.status);
+    const valColor=confirmedGrade&&gc?gc.val:dotC[st];
+    const src=m.source?`<span style="font-size:8px;padding:1px 3px;border-radius:3px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'};margin-left:3px;font-family:var(--mono)">${chLbl[m.source]||m.source}</span>`:'';
+    const gradeTag=displayGrade&&gc?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;background:${gc.bg};color:${gc.c};margin-top:4px;display:inline-block">${confirmedGrade?'✓ '+confirmedGrade:'AI: '+aiGrade}</span>`:'';
+    return`<div class="meas-c"><div class="meas-nm">${m.name}${src}</div><div style="display:flex;align-items:baseline;gap:5px"><span class="meas-v" style="font-size:16px;color:${valColor}">${m.value||'—'}</span></div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${m.meaning||''}</div>${gradeTag}</div>`;
   }).join('')||'<div style="font-size:14px;color:var(--txt3);padding:8px 0;grid-column:1/-1">측정값 없음 (정면·후면 채널 미입력)</div>';
 
   // 등급 수동 확정 UI 렌더링
@@ -2304,7 +2327,27 @@ function buildPDFPages(){
   // TOTAL은 운동 페이지 분할 계산 후 확정 — P1~P4 footer에 __TOTAL__ placeholder 사용
 
   // ── 페이지 1: 표지 — 등급 + 주요 소견 ──────────────────────
+  // 소견이 많으면 P1-a / P1-b로 자동 분할 (5개 초과 시)
   const pg=calcGrades(r);
+  const allFindings=(r.findings||[]).filter(f=>f&&f.level&&f.text);
+  const FINDINGS_PER_PAGE=5;
+  const findingsPages=[];
+  for(let i=0;i<Math.max(1,allFindings.length);i+=FINDINGS_PER_PAGE){
+    findingsPages.push(allFindings.slice(i,i+FINDINGS_PER_PAGE));
+  }
+
+  const renderFindingsHtml=(arr)=>arr.map(f=>{
+    const lvl=f.level||'good';
+    const bg=lvl==='bad'?'var(--err-l)':lvl==='warn'?'var(--warn-l)':'var(--acc-l)';
+    const ic=lvl==='bad'?'var(--err-d)':lvl==='warn'?'var(--warn-d)':'var(--acc-d)';
+    // HTML 태그 허용하되 srcTag는 별도 처리
+    const srcHtml=f.source&&chBg[f.source]?`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${chBg[f.source]};color:${chTxt[f.source]};margin-left:4px;font-family:monospace;font-weight:700">${chLbl[f.source]}</span>`:'';
+    return`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;background:${bg};margin-bottom:7px;line-height:1.7;word-break:break-all">
+      <div style="width:18px;height:18px;border-radius:50%;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:2px">${icons[lvl]||'•'}</div>
+      <div style="font-size:13px;color:var(--txt2);flex:1;min-width:0">${f.text}${srcHtml}</div>
+    </div>`;
+  }).join('');
+
   const pg1=`<div class="pdf-page">
   ${hdr}
   <div style="margin-bottom:22px">
@@ -2323,19 +2366,21 @@ function buildPDFPages(){
     </div>
   </div>
   <div style="margin-bottom:22px">
-    ${st('주요 소견')}
-    ${(r.findings||[]).filter(f=>f&&f.level&&f.text).map(f=>{
-      const lvl=f.level||'good';
-      const bg=lvl==='bad'?'var(--err-l)':lvl==='warn'?'var(--warn-l)':'var(--acc-l)';
-      const ic=lvl==='bad'?'var(--err-d)':lvl==='warn'?'var(--warn-d)':'var(--acc-d)';
-      return`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;background:${bg};margin-bottom:7px;line-height:1.7">
-        <div style="width:18px;height:18px;border-radius:50%;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:2px">${icons[lvl]||'•'}</div>
-        <div style="font-size:13px;color:var(--txt2);flex:1">${f.text}${srcTag(f.source)}</div>
-      </div>`;
-    }).join('')}
+    ${st('주요 소견'+(findingsPages.length>1?' (1/'+findingsPages.length+')':""))}
+    ${renderFindingsHtml(findingsPages[0]||[])}
   </div>
   ${logoFooter}
   </div>`;
+
+  // 소견이 5개 초과 시 추가 소견 페이지 생성
+  const extraFindingPages=findingsPages.slice(1).map((batch,pi)=>`<div class="pdf-page">
+  ${miniHdr('1-'+(pi+2),"__TOTAL__")}
+  <div style="margin-bottom:22px">
+    ${st('주요 소견 ('+(pi+2)+'/'+findingsPages.length+')')}
+    ${renderFindingsHtml(batch)}
+  </div>
+  ${logoFooter}
+  </div>`).join('');
 
   // ── 페이지 2: 촬영 이미지 ───────────────────────────────────
   const imgLabels={side:'측면 (Side View)',front:'정면 모아레 (Front Moiré)',rear:'후면 모아레 (Rear Moiré)'};
@@ -2412,7 +2457,6 @@ function buildPDFPages(){
       <thead><tr>
         <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">항목</th>
         <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">측정값</th>
-        <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">기준</th>
         <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">등급</th>
         <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">채널</th>
         <th style="font-size:11px;color:var(--txt3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">임상의미</th>
@@ -2422,21 +2466,21 @@ function buildPDFPages(){
         const savedG=(r._measurement_grades||{})[m.name]||'';
         const aiG=m.ai_grade||'';
         const displayG=savedG||aiG;
-        const gradeC={정상:'#085041',경도:'#633806',중등도:'#791F1F',심함:'#791F1F'};
         const gradeB={정상:'#E1F5EE',경도:'#FAEEDA',중등도:'#FCEBEB',심함:'#E24B4A'};
         const gradeTx={정상:'#085041',경도:'#633806',중등도:'#791F1F',심함:'#fff'};
+        const gradeValC={정상:'#1D9E75',경도:'#BA7517',중등도:'#E24B4A',심함:'#791F1F'};
+        const valColor=displayG&&gradeValC[displayG]?gradeValC[displayG]:dotC[mst];
         const gradeCell=displayG
           ?`<span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;background:${gradeB[displayG]||'#f7f7f5'};color:${gradeTx[displayG]||'#333'}">${savedG?'✓ '+savedG:'AI: '+aiG}</span>`
           :'—';
         return`<tr>
           <td style="font-size:13px;font-weight:700;color:var(--txt);padding:10px">${esc(m.name)}</td>
-          <td style="font-size:14px;font-weight:800;font-family:monospace;text-align:center;padding:10px;color:${dotC[mst]}">${esc(m.value||'—')}</td>
-          <td style="font-size:12px;color:var(--txt3);text-align:center;padding:10px">${esc(m.normal||'—')}</td>
+          <td style="font-size:14px;font-weight:800;font-family:monospace;text-align:center;padding:10px;color:${valColor}">${esc(m.value||'—')}</td>
           <td style="text-align:center;padding:10px">${gradeCell}</td>
           <td style="text-align:center;padding:10px">${m.source?`<span class="stag" style="font-size:10px;padding:2px 7px;background:${chBg[m.source]||'#E1F5EE'};color:${chTxt[m.source]||'#085041'}">${chLbl[m.source]||m.source}</span>`:''}</td>
           <td style="font-size:12px;color:var(--txt2);padding:10px">${esc(m.meaning||'')}</td>
         </tr>`;
-      }).join('')||'<tr><td colspan="6" style="font-size:12px;color:var(--txt3);text-align:center;padding:14px">측정값 없음</td></tr>'}</tbody>
+      }).join('')||'<tr><td colspan="5" style="font-size:12px;color:var(--txt3);text-align:center;padding:14px">측정값 없음</td></tr>'}</tbody>
     </table>
   </div>
   ${logoFooter}
@@ -2603,7 +2647,7 @@ function buildPDFPages(){
   }).join('');
 
   // P1~P4의 __TOTAL__ placeholder를 실제 값으로 치환 후 삽입
-  const allPages=(pg1+pg2+pg3+pg4+pg5+extraPgHtml).replace(/__TOTAL__/g,String(TOTAL));
+  const allPages=(pg1+extraFindingPages+pg2+pg3+pg4+pg5+extraPgHtml).replace(/__TOTAL__/g,String(TOTAL));
   document.getElementById('pdf-pages').innerHTML=allPages;
 }
 
