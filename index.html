@@ -2762,59 +2762,42 @@ function buildPDFPages(){
     ${logoFooter}
     </div>`).join('');
 
-    // S-P2: 측면 이미지 + 랜드마크 표 + 두부경추 정렬 (한 페이지)
+    // S-P2: 측면 이미지 + 랜드마크 표 (한 페이지, 두부경추 제외)
     const sideImgSrc=b64.side?`data:image/jpeg;base64,${b64.side}`:(r._sid?`${SB_URL}/storage/v1/object/public/posture-images/${p.id}/${r._sid}_side.jpg`:'');
     const spg2=`<div class="pdf-page">
     ${miniHdrS(sideFindingPages.length>1?1+sideFindingPages.length:2,'__STOTAL__')}
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;margin-bottom:22px;align-items:start">
+    <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:20px;margin-bottom:22px;align-items:start">
       <div>
         ${st('측면 이미지')}
         ${sideImgSrc
-          ?`<img src="${sideImgSrc}" style="width:100%;height:420px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block" crossorigin="anonymous">`
-          :`<div style="height:420px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center"><span style="font-size:13px;color:var(--txt3)">이미지 없음</span></div>`}
+          ?`<img src="${sideImgSrc}" style="width:100%;height:560px;object-fit:contain;border-radius:10px;border:1px solid var(--border);display:block;background:#000" crossorigin="anonymous">`
+          :`<div style="height:560px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center"><span style="font-size:13px;color:var(--txt3)">이미지 없음</span></div>`}
       </div>
       <div>
-        <div style="margin-bottom:18px">
-          ${st('랜드마크 수직 정렬 (외과 기준)')}
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">랜드마크</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">편차</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">소견</th>
-            </tr></thead>
-            <tbody>${(r.landmarks_side||[]).filter(l=>l&&l.name).map(l=>{
-              const lst=normalizeStatus(l.status);
-              return`<tr>
-                <td style="font-size:12px;font-weight:700;color:var(--txt);padding:8px">${esc(l.name)}</td>
-                <td style="font-size:13px;font-weight:800;font-family:monospace;text-align:center;padding:8px;color:${dotC[lst]}">${esc(l.offset||'—')}</td>
-                <td style="text-align:center;padding:8px">${spill(lst)}</td>
-                <td style="font-size:11px;color:var(--txt2);padding:8px">${esc(l.note||'')}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>
-        </div>
-        <div>
-          ${st('정면 — 두부·경추 정렬')}
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">항목</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">측정값</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
-              <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">소견</th>
-            </tr></thead>
-            <tbody>${(r.landmarks_front||[]).filter(l=>l&&l.name).map(l=>{
-              const lft=normalizeStatus(l.status);
-              const val=(l.offset||l.asymmetry_pct||'—')+(l.direction&&l.direction!=='none'?' ('+(l.direction==='left'?'좌':'우')+')':'');
-              return`<tr>
-                <td style="font-size:12px;font-weight:700;color:var(--txt);padding:8px">${esc(l.name)}</td>
-                <td style="font-size:13px;font-weight:800;font-family:monospace;text-align:center;padding:8px;color:${dotC[lft]}">${val}</td>
-                <td style="text-align:center;padding:8px">${spill(lft)}</td>
-                <td style="font-size:11px;color:var(--txt2);padding:8px">${esc(l.note||'')}</td>
-              </tr>`;
-            }).join('')||'<tr><td colspan="4" style="font-size:11px;color:var(--txt3);text-align:center;padding:10px">정면 채널 미입력</td></tr>'}</tbody>
-          </table>
-        </div>
+        ${st('랜드마크 수직 정렬 (외과 기준)')}
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <colgroup>
+            <col style="width:18%">
+            <col style="width:20%">
+            <col style="width:18%">
+            <col style="width:44%">
+          </colgroup>
+          <thead><tr>
+            <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">랜드마크</th>
+            <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">편차</th>
+            <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700">판정</th>
+            <th style="font-size:11px;color:var(--txt3);padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:700">소견</th>
+          </tr></thead>
+          <tbody>${(r.landmarks_side||[]).filter(l=>l&&l.name).map(l=>{
+            const lst=normalizeStatus(l.status);
+            return`<tr>
+              <td style="font-size:12px;font-weight:700;color:var(--txt);padding:8px;word-break:keep-all">${esc(l.name)}</td>
+              <td style="font-size:13px;font-weight:800;font-family:monospace;text-align:center;padding:8px;color:${dotC[lst]}">${esc(l.offset||'—')}</td>
+              <td style="text-align:center;padding:8px">${spill(lst)}</td>
+              <td style="font-size:11px;color:var(--txt2);padding:8px;word-break:keep-all;line-height:1.5">${esc(l.note||'')}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
       </div>
     </div>
     ${logoFooter}
