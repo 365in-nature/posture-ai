@@ -1828,6 +1828,9 @@ async function startAna(){
       ];
       curSession.cross_validated_muscles=[...new Set(cvMuscles)];
     }
+    // 문자열 배열로 정규화 (AI가 객체로 반환할 경우 대비)
+    curSession.cross_validated_muscles=(curSession.cross_validated_muscles||[])
+      .map(m=>typeof m==='string'?m:(m?.name||'')).filter(Boolean);
     await saveSess(curSession);
     renderResult(curSession);
   }catch(e){
@@ -1868,6 +1871,9 @@ async function viewSess(sid){
     ];
     curSession.cross_validated_muscles=[...new Set(cvMuscles)];
   }
+  // 문자열 배열로 정규화 (객체로 저장된 경우 대비)
+  curSession.cross_validated_muscles=(curSession.cross_validated_muscles||[])
+    .map(m=>typeof m==='string'?m:(m?.name||'')).filter(Boolean);
   renderResult(curSession);showSub('result');
 }
 
@@ -1967,10 +1973,12 @@ function renderResult(r){
   }
   renderMoire(r.moire_front,'cnt-f');renderMoire(r.moire_rear,'cnt-r');
   const crossEl=document.getElementById('cross-box');
-  if(r.cross_validated_muscles?.length){
+  // cross_validated_muscles가 객체 배열일 수도 있으므로 문자열로 정규화
+  const cvNames=(r.cross_validated_muscles||[]).map(m=>typeof m==='string'?m:(m?.name||'')).filter(Boolean);
+  if(cvNames.length){
     crossEl.style.display='block';
     crossEl.className='cross-box';
-    crossEl.innerHTML=`<div class="cross-t">3채널 교차검증 핵심 근육</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${r.cross_validated_muscles.map(m=>`<span style="font-size:13px;font-weight:700;color:var(--err-d);padding:3px 12px;background:#fff;border-radius:20px;border:1px solid var(--err)">${m}</span>`).join('')}</div>`;
+    crossEl.innerHTML=`<div class="cross-t">3채널 교차검증 핵심 근육</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${cvNames.map(m=>`<span style="font-size:13px;font-weight:700;color:var(--err-d);padding:3px 12px;background:#fff;border-radius:20px;border:1px solid var(--err)">${m}</span>`).join('')}</div>`;
   }else{
     crossEl.style.display='none';
     crossEl.className='';
