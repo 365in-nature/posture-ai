@@ -1137,14 +1137,54 @@ function handleF(ch,inp){if(inp.files[0])procFile(ch,inp.files[0])}
 function procFile(ch,f){
   files[ch]=f;const r=new FileReader();
   r.onload=ev=>{
-    b64[ch]=ev.target.result.split(',')[1];
-    const s=document.getElementById('slot-'+ch);
-    s.classList.add('filled');
-    s.innerHTML=`<img class="slot-img" src="${ev.target.result}"><button class="slot-rm" onclick="rmSlot(event,'${ch}')">✕</button><div class="slot-ok"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>`;
-    updateProg();
-    if(ch==='side') runMediaPipe(ev.target.result);
+    // 이미지 전처리: 고정 해상도 + 대비 표준화
+    const img=new Image();
+    img.onload=()=>{
+      const MAX_W=1024, MAX_H=1024;
+      const ratio=Math.min(MAX_W/img.width, MAX_H/img.height, 1);
+      const w=Math.round(img.width*ratio);
+      const h=Math.round(img.height*ratio);
+      const cvs=document.createElement('canvas');
+      cvs.width=w; cvs.height=h;
+      const ctx=cvs.getContext('2d');
+      // 흰 배경 채우기
+      ctx.fillStyle='#fff';
+      ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      // 대비 표준화: CSS filter로 brightness/contrast 고정
+      // Canvas filter (모던 브라우저 지원)
+      try{
+        const cvs2=document.createElement('canvas');
+        cvs2.width=w; cvs2.height=h;
+        const ctx2=cvs2.getContext('2d');
+        ctx2.filter='brightness(1.0) contrast(1.1)';
+        ctx2.drawImage(cvs,0,0);
+        const processedDataUrl=cvs2.toDataURL('image/jpeg',0.92);
+        b64[ch]=processedDataUrl.split(',')[1];
+        finishProcFile(ch, processedDataUrl);
+      }catch(e){
+        // filter 미지원 시 원본 사용
+        const fallbackUrl=cvs.toDataURL('image/jpeg',0.92);
+        b64[ch]=fallbackUrl.split(',')[1];
+        finishProcFile(ch, fallbackUrl);
+      }
+    };
+    img.onerror=()=>{
+      // 이미지 로드 실패 시 원본 사용
+      b64[ch]=ev.target.result.split(',')[1];
+      finishProcFile(ch, ev.target.result);
+    };
+    img.src=ev.target.result;
   };
   r.readAsDataURL(f);
+}
+
+function finishProcFile(ch, dataUrl){
+  const s=document.getElementById('slot-'+ch);
+  s.classList.add('filled');
+  s.innerHTML=`<img class="slot-img" src="${dataUrl}"><button class="slot-rm" onclick="rmSlot(event,'${ch}')">✕</button><div class="slot-ok"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>`;
+  updateProg();
+  if(ch==='side') runMediaPipe(dataUrl);
 }
 function rmSlot(e,ch){
   e.stopPropagation();
@@ -1255,6 +1295,7 @@ JSON만 출력:
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:500,
+        temperature:0,
         messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:files.side?.type||'image/png',data:b64.side}},
           {type:'text',text:prompt}
@@ -1799,11 +1840,14 @@ ${mpData?'⚠️ landmarks_side의 offset은 위에서 제공한 실측값(외�
 
 === 채널2: 정면 모아레 사진 ${hf?'(입력됨)':'(없음 — 해당 항목 null)'} ===
 모아레는 격자 빛으로 체표면 굴곡을 등고선으로 시각화한 사진입니다.
+⚠️ 정면 사진 좌우 기준: 이미지의 왼쪽 = 환자의 오른쪽, 이미지의 오른쪽 = 환자의 왼쪽입니다.
 - 등고선 밀집 → 근육 단축·긴장 / 등고선 편위·비대칭 → 구조적 비대칭
 - 등고선 끊김 → 근육 위축·약화 / 등고선 팽창 → 과긴장
 
 === 채널3: 후면 모아레 사진 ${hr?'(입력됨)':'(없음 — 해당 항목 null)'} ===
+⚠️ 후면 사진 좌우 기준: 이미지의 왼쪽 = 환자의 왼쪽, 이미지의 오른쪽 = 환자의 오른쪽입니다.
 - 척추 S/C자 커브 / 견갑골 비대칭·Winging / PSIS 높이차 / 요방형근 비대칭
+- 어깨높이차·견갑간격·허리간격의 좌/우 방향 표기 시 반드시 환자 기준으로 작성하세요.
 
 === 교차검증 ===
 3채널 일치→true / 2채널→"partial" / 1채널→false
